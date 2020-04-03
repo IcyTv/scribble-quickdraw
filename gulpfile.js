@@ -1,5 +1,4 @@
 const { task, dest, src, series, parallel, watch } = require("gulp");
-const ts = require("gulp-typescript");
 const sourcemaps = require("gulp-sourcemaps");
 const sass = require("gulp-sass");
 const dart = require("dart-sass");
@@ -23,7 +22,6 @@ const mode = require("gulp-mode")({
 
 sass.compiler = dart;
 
-const tsProject = ts.createProject("tsconfig.json");
 const beautifyOpt = {
 	indent_with_tabs: true,
 	space_after_anon_function: true,
