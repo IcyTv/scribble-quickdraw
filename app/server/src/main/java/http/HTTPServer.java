@@ -1,6 +1,5 @@
 package http;
 
-import java.security.interfaces.RSAKey;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,7 +24,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
-import utils.PemUtils;
 
 public class HTTPServer extends AbstractVerticle {
 
@@ -35,8 +33,10 @@ public class HTTPServer extends AbstractVerticle {
 	public static final String POSTGRES_USER = "unpriv";
 	public static final String POSTGRES_PW = "gMvDapsv586HZ7K74a9i";
 
-	public static final RSAKey PUBLIC_KEY = (RSAKey) PemUtils.readPublicKeyFromFile(".\\keys\\public_key.pub", "RSA");
-	public static final RSAKey PRIVATE_KEY = (RSAKey) PemUtils.readPrivateKeyFromFile(".\\keys\\jwt-keys.der", "RSA");
+	// public static final RSAKey PUBLIC_KEY = (RSAKey)
+	// PemUtils.readPublicKeyFromFile(".\\keys\\public_key.pub", "RSA");
+	// public static final RSAKey PRIVATE_KEY = (RSAKey)
+	// PemUtils.readPrivateKeyFromFile(".\\keys\\jwt-keys.der", "RSA");
 
 	private final Connection conn;
 	private Router router;
@@ -45,8 +45,8 @@ public class HTTPServer extends AbstractVerticle {
 	public HTTPServer(final int port) throws Exception {
 		this.port = port;
 		conn = DriverManager.getConnection(POSTGRES_URL, POSTGRES_USER, POSTGRES_PW);
-		log.info(PUBLIC_KEY.toString());
-		log.info(PRIVATE_KEY.toString());
+		// log.info(PUBLIC_KEY.toString());
+		// log.info(PRIVATE_KEY.toString());
 	}
 
 	@Override
@@ -85,7 +85,7 @@ public class HTTPServer extends AbstractVerticle {
 		String ip = getIp(c);
 		log.info(ip);
 		try {
-			if(isRegistered(name)) {
+			if (isRegistered(name)) {
 				res.setStatusCode(403).end("User already exists");
 			} else {
 				log.info("registered user " + name);
@@ -102,7 +102,8 @@ public class HTTPServer extends AbstractVerticle {
 	private String getIp(RoutingContext c) {
 		String ip = c.request().headers().get("X-Real-Ip");
 		if (ip == null || ip == "") {
-			return "127.0.0.1";
+			return c.request().connection().remoteAddress().toString();
+			//return "127.0.0.1";
 		} else {
 			return ip;
 		}
@@ -181,12 +182,13 @@ public class HTTPServer extends AbstractVerticle {
 	private void handleIp(String name, String ip) {
 		String sql = "UPDATE public.users SET ips=? WHERE name=?;";
 		try {
-			ResultSet r = queryDb("SELECT ips FROM public.users WHERE name='" + StringEscapeUtils.escapeSql(name) + "';");
-			if(r.next()) {
+			ResultSet r = queryDb(
+					"SELECT ips FROM public.users WHERE name='" + StringEscapeUtils.escapeSql(name) + "';");
+			if (r.next()) {
 				Array ips = r.getArray(1);
 				ArrayList<Object> ipal = new ArrayList<Object>();
-				for(Object s: (Object[])ips.getArray()) {
-					if(s.toString().equals(ip)) {
+				for (Object s : (Object[]) ips.getArray()) {
+					if (s.toString().equals(ip)) {
 						return;
 					}
 					ipal.add(s);
@@ -210,13 +212,12 @@ public class HTTPServer extends AbstractVerticle {
 	}
 
 	public static void main(final String[] args) throws Exception {
-		System.setProperty("java.util.logging.SimpleFormatter.format",
-		"[%1$tF %1$tT] [%4$-7s] %5$s %n");
+		System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] [%4$-7s] %5$s %n");
 		// System.setProperties("vertexweb.environment", "development");
 		final HTTPServer s = new HTTPServer(8080);
 		Vertx vertx = Vertx.vertx();
 		vertx.deployVerticle(s);
-		//s.newUser("Merlin", "passwort", "127.0.0.1");
+		// s.newUser("Merlin", "passwort", "127.0.0.1");
 	}
 
 }

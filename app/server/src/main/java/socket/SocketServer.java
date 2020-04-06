@@ -1,7 +1,5 @@
 package socket;
 
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
