@@ -1,36 +1,222 @@
 package http;
 
+import java.security.interfaces.RSAKey;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.UUID;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-public class HTTPServer {
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
+import utils.PemUtils;
+
+public class HTTPServer extends AbstractVerticle {
+
+	private static final Logger log = Logger.getLogger(HTTPServer.class.getName());
+
+	public static final String POSTGRES_URL = "jdbc:postgresql://192.168.178.97:5432/scribble";
+	public static final String POSTGRES_USER = "unpriv";
+	public static final String POSTGRES_PW = "gMvDapsv586HZ7K74a9i";
+
+	public static final RSAKey PUBLIC_KEY = (RSAKey) PemUtils.readPublicKeyFromFile(".\\keys\\public_key.pub", "RSA");
+	public static final RSAKey PRIVATE_KEY = (RSAKey) PemUtils.readPrivateKeyFromFile(".\\keys\\jwt-keys.der", "RSA");
 
 	private final Connection conn;
+	private Router router;
+	private final int port;
 
-	public HTTPServer(int port) throws Exception {
-		conn = DriverManager.getConnection("jdbc:postgresql://192.168.178.97:5432/scribble", "unpriv",
-				"gMvDapsv586HZ7K74a9i");
+	public HTTPServer(final int port) throws Exception {
+		this.port = port;
+		conn = DriverManager.getConnection(POSTGRES_URL, POSTGRES_USER, POSTGRES_PW);
+		log.info(PUBLIC_KEY.toString());
+		log.info(PRIVATE_KEY.toString());
 	}
 
-	private void newUser(String name, String password, String ip) throws Exception {
-		PasswordEncoder pw = new BCryptPasswordEncoder();
-		String encpw = pw.encode(password);
-		UUID uuid = UUID.nameUUIDFromBytes(ip.getBytes());
+	@Override
+	public void start(Promise<Void> prom) {
+		log.info("Starting server");
+		router = Router.router(vertx);
+		router.route().handler(BodyHandler.create());
+		router.post("/users/register").handler(this::handleUserRegister);
+		router.post("/users/login").handler(this::handleUserLogin);
+		router.post("/auth/:scope").handler(this::handleUserAuth);
+		router.post("/logout").handler(this::handleUserLogout);
 
-		Statement st = conn.createStatement();
-		String sql = String.format("INSERT INTO public.users(id, name, password, ips, uuid)"
-				+ "VALUES(DEFAULT, '%s', '%s', ARRAY ['%s'::INET], '%s');", name, encpw, ip, uuid.toString());
+		vertx.createHttpServer().requestHandler(router).listen(port, result -> {
+			if (result.succeeded()) {
+				log.info("Started server on port " + port);
+				prom.complete();
+			} else {
+				log.severe("Failed to start server");
+				log.severe(result.cause().getMessage());
+				prom.fail(result.cause());
+			}
+		});
+	}
+
+	private void handleUserRegister(RoutingContext c) {
+		log.info("New user registration");
+		HttpServerResponse res = c.response();
+		JsonObject body = c.getBodyAsJson();
+		String name = body.getString("username");
+		if (!Pattern.matches("[A-Za-z0-9-]{3,12}", name)) {
+			log.warning("Malformed username: " + name);
+			res.setStatusCode(403).end("Malformed username, please only use A-z, 0-9 and '-'!");
+			return;
+		}
+		String pw = body.getString("password");
+		String ip = getIp(c);
+		log.info(ip);
+		try {
+			if(isRegistered(name)) {
+				res.setStatusCode(403).end("User already exists");
+			} else {
+				log.info("registered user " + name);
+				newUser(name, pw, ip);
+				res.setStatusCode(200).end("Registered user");
+			}
+		} catch (Exception e) {
+			log.severe("Failed to register user");
+			log.severe(e.getMessage());
+			res.setStatusCode(500).end("A server error occured on register, please contact administrator");
+		}
+	}
+
+	private String getIp(RoutingContext c) {
+		String ip = c.request().headers().get("X-Real-Ip");
+		if (ip == null || ip == "") {
+			return "127.0.0.1";
+		} else {
+			return ip;
+		}
+	}
+
+	private void handleUserLogin(RoutingContext c) {
+		HttpServerResponse res = c.response();
+		JsonObject body = c.getBodyAsJson();
+		String name = body.getString("username");
+		String pw = body.getString("password");
+		try {
+			new Thread(() -> handleIp(name, getIp(c))).start();
+			log.info("Running");
+			String hash = getPwHash(name);
+			if (checkPassword(pw, hash)) {
+				res.setStatusCode(200).end("Logged in");
+			} else {
+				res.setStatusCode(403).end("Wrong password");
+			}
+		} catch (IllegalArgumentException e) {
+			res.setStatusCode(403).end(e.getMessage());
+		} catch (Exception e) {
+			log.severe("Error while logging in");
+			log.severe(e.getMessage());
+			res.setStatusCode(500).end("Internal Server Error");
+		}
+	}
+
+	private void handleUserAuth(RoutingContext c) {
+
+	}
+
+	private void handleUserLogout(RoutingContext c) {
+
+	}
+
+	private void newUser(final String name, final String password, final String ip) throws Exception {
+		String ename = StringEscapeUtils.escapeSql(name);
+		final PasswordEncoder pw = new BCryptPasswordEncoder();
+		final String encpw = pw.encode(password);
+		final UUID uuid = UUID.nameUUIDFromBytes(ip.getBytes());
+
+		final Statement st = conn.createStatement();
+		final String sql = String.format("INSERT INTO public.users(id, name, password, ips, uuid)"
+				+ "VALUES(DEFAULT, '%s', '%s', ARRAY ['%s'::INET], '%s');", ename, encpw, ip, uuid.toString());
 		st.executeUpdate(sql);
 	}
 
-	public static void main(String[] args) throws Exception {
-		HTTPServer s = new HTTPServer(12345);
-		s.newUser("Merlin", "passwort", "127.0.0.1");
+	private boolean checkPassword(String pw, String hash) {
+		PasswordEncoder pe = new BCryptPasswordEncoder();
+		return pe.matches(pw, hash);
+
+	}
+
+	private boolean isRegistered(String name) throws SQLException {
+		log.info("Checking user registration for " + name);
+		Statement st = conn.createStatement();
+		String sql = String.format("SELECT name FROM public.users WHERE name='%s'", StringEscapeUtils.escapeSql(name));
+		return st.executeQuery(sql).next();
+	}
+
+	private String getPwHash(String name) throws Exception {
+		log.info("Getting hash for " + name);
+		Statement st = conn.createStatement();
+		String sql = String.format("SELECT password FROM public.users WHERE name='%s'",
+				StringEscapeUtils.escapeSql(name));
+		ResultSet res = st.executeQuery(sql);
+		if (res.next()) {
+			return res.getString(1);
+		} else {
+			log.warning("No user with the name " + name + " found");
+			throw new IllegalArgumentException("No user with the name " + name + " found");
+		}
+	}
+
+	private void handleIp(String name, String ip) {
+		String sql = "UPDATE public.users SET ips=? WHERE name=?;";
+		try {
+			ResultSet r = queryDb("SELECT ips FROM public.users WHERE name='" + StringEscapeUtils.escapeSql(name) + "';");
+			if(r.next()) {
+				Array ips = r.getArray(1);
+				ArrayList<Object> ipal = new ArrayList<Object>();
+				for(Object s: (Object[])ips.getArray()) {
+					if(s.toString().equals(ip)) {
+						return;
+					}
+					ipal.add(s);
+				}
+				log.info("Adding new ip for user " + name + " " + ip);
+				ipal.add(ip);
+				PreparedStatement st = conn.prepareStatement(sql);
+				st.setArray(1, conn.createArrayOf("INET", ipal.toArray()));
+				st.setString(2, StringEscapeUtils.escapeSql(name));
+				st.executeUpdate();
+			}
+		} catch (Exception e) {
+			log.warning("Could not handle Ip");
+			log.warning(e.getMessage());
+		}
+	}
+
+	private ResultSet queryDb(String sql) throws SQLException {
+		Statement st = conn.createStatement();
+		return st.executeQuery(sql);
+	}
+
+	public static void main(final String[] args) throws Exception {
+		System.setProperty("java.util.logging.SimpleFormatter.format",
+		"[%1$tF %1$tT] [%4$-7s] %5$s %n");
+		// System.setProperties("vertexweb.environment", "development");
+		final HTTPServer s = new HTTPServer(8080);
+		Vertx vertx = Vertx.vertx();
+		vertx.deployVerticle(s);
+		//s.newUser("Merlin", "passwort", "127.0.0.1");
 	}
 
 }

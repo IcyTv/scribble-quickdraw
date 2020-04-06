@@ -7,49 +7,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
-import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.WebSocketServer;
-
-public class SocketServer extends WebSocketServer {
-
-	public SocketServer(int port) throws UnknownHostException {
-		this(new InetSocketAddress(port));
-	}
-
-	public SocketServer(InetSocketAddress addr) throws UnknownHostException {
-		super(addr);
-	}
-
-	@Override
-	public void onOpen(WebSocket conn, ClientHandshake handshake) {
-		System.out.println(handshake.getFieldValue("X-Real-Ip") + " connected");
-
-	}
-
-	@Override
-	public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void onMessage(WebSocket conn, String message) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void onError(WebSocket conn, Exception ex) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void onStart() {
-		// TODO Auto-generated method stub
-
-	}
+public class SocketServer {
 
 	public static void main(String[] args) {
 		Connection c = null;
