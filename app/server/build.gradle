@@ -1,0 +1,19 @@
+apply plugin: "java"
+apply plugin: "eclipse"
+
+repositories {
+	mavenCentral();
+}
+
+dependencies {
+	//implementation "org.java-websocket:Java-WebSocket:1.4.1";
+	implementation 'org.postgresql:postgresql:42.2.12.jre6';
+	implementation 'org.springframework.security:spring-security-crypto:5.0.15.RELEASE';
+	implementation 'commons-logging:commons-logging-api:1.1';
+	implementation 'io.vertx:vertx-core:4.0.0-milestone4';
+	implementation 'io.vertx:vertx-web:4.0.0-milestone4';
+	implementation 'org.netbeans.external:org-apache-commons-lang:RELEASE113';
+	implementation 'com.auth0:java-jwt:3.10.2'
+	compile 'org.bouncycastle:bcprov-jdk15on:1.59'
+}
+
