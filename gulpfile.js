@@ -17,7 +17,7 @@ const rename = require("gulp-rename");
 
 const mode = require("gulp-mode")({
 	modes: ["production", "development"],
-	default: "development"
+	default: "development",
 });
 
 sass.compiler = dart;
@@ -26,7 +26,7 @@ const beautifyOpt = {
 	indent_with_tabs: true,
 	space_after_anon_function: true,
 	space_after_named_function: true,
-	keep_array_indentation: false
+	keep_array_indentation: false,
 };
 
 const brOpts = { cache: {}, packageCache: {}, debug: true };
@@ -36,7 +36,7 @@ task("ts", () => {
 		src("app/client/assets/ts/*.ts")
 			.pipe(debug())
 			.pipe(
-				tap(file => {
+				tap((file) => {
 					file.contents = browserify(file.path, brOpts)
 						.plugin(tsify)
 						.bundle();
@@ -53,7 +53,7 @@ task("ts", () => {
 			//.pipe(sourcemaps.write())
 			.pipe(
 				rename({
-					extname: ".js"
+					extname: ".js",
 				})
 			)
 			.pipe(dest("dist/client/assets/js"))
@@ -76,7 +76,7 @@ task("html", () => {
 	src("app/client/**.html")
 		.pipe(
 			fileAssets({
-				excludes: ["html", "css", "js"]
+				excludes: ["html", "css", "js"],
 			})
 		)
 		.pipe(dest("dist/client"));
@@ -85,7 +85,7 @@ task("html", () => {
 			.pipe(
 				ejs({
 					root: "/app/client/assets/html",
-					compileDebug: true
+					compileDebug: true,
 				})
 			)
 			.pipe(mode.development(beautify(beautifyOpt)))
@@ -98,9 +98,9 @@ task("html", () => {
 task("browser", () => {
 	browserSync.init({
 		server: {
-			baseDir: "./dist/client"
+			baseDir: "./dist/client",
 		},
-		open: false
+		open: false,
 	});
 });
 
@@ -115,12 +115,23 @@ task(
 	series("default", () => {
 		browserSync.init({
 			server: {
-				baseDir: "dist/client"
-			}
+				baseDir: "dist/client",
+			},
 		});
-
-		watch("./app/client", series("html", "reload"));
-		watch("./app/client/assets/css", series("css", "reload"));
-		watch("app/client/assets/ts", series("ts", "reload"));
+		let html = watch("./app/client/**/*.html", parallel("html"));
+		html.on("change", () => {
+			browserSync.notify("Compiling, please wait!");
+			browserSync.reload("*.html");
+		});
+		let css = watch("./app/client/assets/css/**/*.scss", parallel("css"));
+		css.on("change", () => {
+			browserSync.notify("Compiling, please wait!");
+			browserSync.reload("*.css");
+		});
+		let ts = watch("app/client/assets/ts/**/*.ts", parallel("ts"));
+		ts.on("change", () => {
+			browserSync.notify("Compiling, please wait!");
+			browserSync.reload("*.js");
+		});
 	})
 );

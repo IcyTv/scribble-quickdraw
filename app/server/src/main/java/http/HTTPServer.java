@@ -1,5 +1,6 @@
 package http;
 
+import java.security.KeyPair;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -7,7 +8,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -16,11 +20,19 @@ import org.apache.commons.lang.StringEscapeUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -32,6 +44,10 @@ public class HTTPServer extends AbstractVerticle {
 	public static final String POSTGRES_URL = "jdbc:postgresql://192.168.178.97:5432/scribble";
 	public static final String POSTGRES_USER = "unpriv";
 	public static final String POSTGRES_PW = "gMvDapsv586HZ7K74a9i";
+
+	public static final String ISSUER = "scribble-server";
+
+	public static final KeyPair KEY_PAIR = Keys.keyPairFor(SignatureAlgorithm.RS256);
 
 	// public static final RSAKey PUBLIC_KEY = (RSAKey)
 	// PemUtils.readPublicKeyFromFile(".\\keys\\public_key.pub", "RSA");
@@ -45,6 +61,9 @@ public class HTTPServer extends AbstractVerticle {
 	public HTTPServer(final int port) throws Exception {
 		this.port = port;
 		conn = DriverManager.getConnection(POSTGRES_URL, POSTGRES_USER, POSTGRES_PW);
+		log.info("private: " + KEY_PAIR.getPrivate());
+		log.info("public: " + KEY_PAIR.getPublic());
+
 		// log.info(PUBLIC_KEY.toString());
 		// log.info(PRIVATE_KEY.toString());
 	}
@@ -56,8 +75,40 @@ public class HTTPServer extends AbstractVerticle {
 		router.route().handler(BodyHandler.create());
 		router.post("/users/register").handler(this::handleUserRegister);
 		router.post("/users/login").handler(this::handleUserLogin);
-		router.post("/auth/:scope").handler(this::handleUserAuth);
-		router.post("/logout").handler(this::handleUserLogout);
+		Route auth = router.post("/auth/:scope").handler(this::handleUserAuth);
+		router.post("/api/refresh-jwt").handler(this::refreshJWT);
+
+		router.get("/logout").handler(this::handleUserLogout);
+
+		// ERROR HANDLING
+		auth.failureHandler(c -> {
+			HttpServerResponse res = c.response();
+			int statusCode = c.statusCode();
+			if (statusCode == 401) {
+				log.warning("Invalid jwt");
+				res.setStatusCode(401).end("Your jwt token is invalid, please try logging in again");
+			} else if (statusCode == 403) {
+				res.setStatusCode(403).end("You do not have access to that scope");
+			} else {
+				log.severe("Different error!");
+				try {
+					throw new Exception(c.failure());
+				} catch (Exception e) {
+					log.severe(e.getMessage());
+					e.printStackTrace();
+				}
+			}
+		});
+
+		router.errorHandler(500, cont -> {
+			log.warning("Error 500");
+			log.warning(cont.normalisedPath());
+			try {
+				throw new Exception(cont.failure());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		});
 
 		vertx.createHttpServer().requestHandler(router).listen(port, result -> {
 			if (result.succeeded()) {
@@ -75,6 +126,7 @@ public class HTTPServer extends AbstractVerticle {
 		log.info("New user registration");
 		HttpServerResponse res = c.response();
 		JsonObject body = c.getBodyAsJson();
+		log.info(body.toString());
 		String name = body.getString("username");
 		if (!Pattern.matches("[A-Za-z0-9-]{3,12}", name)) {
 			log.warning("Malformed username: " + name);
@@ -103,7 +155,7 @@ public class HTTPServer extends AbstractVerticle {
 		String ip = c.request().headers().get("X-Real-Ip");
 		if (ip == null || ip == "") {
 			return c.request().connection().remoteAddress().toString();
-			//return "127.0.0.1";
+			// return "127.0.0.1";
 		} else {
 			return ip;
 		}
@@ -117,9 +169,11 @@ public class HTTPServer extends AbstractVerticle {
 		try {
 			new Thread(() -> handleIp(name, getIp(c))).start();
 			log.info("Running");
-			String hash = getPwHash(name);
-			if (checkPassword(pw, hash)) {
-				res.setStatusCode(200).end("Logged in");
+			User u = getUserInfo(name);
+			if (checkPassword(pw, u.pwHash)) {
+				res.setStatusCode(200);
+				res.putHeader("content-type", "text/plain");
+				res.end(getJWT(u));
 			} else {
 				res.setStatusCode(403).end("Wrong password");
 			}
@@ -128,16 +182,72 @@ public class HTTPServer extends AbstractVerticle {
 		} catch (Exception e) {
 			log.severe("Error while logging in");
 			log.severe(e.getMessage());
-			res.setStatusCode(500).end("Internal Server Error");
+			res.setStatusCode(500).end("Internal Server Error on login");
 		}
 	}
 
 	private void handleUserAuth(RoutingContext c) {
+		JsonObject body = c.getBodyAsJson();
+		HttpServerResponse res = c.response();
+		String scope = c.request().getParam("scope");
+		try {
+			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(KEY_PAIR.getPublic()).build()
+					.parseClaimsJws(body.getString("jwt"));
+			Claims claims = jwt.getBody();
+			if (claims.getExpiration().compareTo(new Date()) < 0) {
+				SimpleDateFormat form = new SimpleDateFormat();
+				log.info("Current time: " + form.format(new Date()));
+				log.warning("Expired jwt on " + form.format(claims.getExpiration()));
+				c.fail(401);
+				return;
+			}
+			if (!claims.getIssuer().equals(ISSUER)) {
+				log.warning("Wrong issuer!");
+				c.fail(401);
+				return;
+			}
+			boolean found = false;
+			for (Object perm : claims.get("perms", ArrayList.class)) {
+				if (perm.equals(scope)) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				log.warning("Wrong scope");
+				c.fail(403);
+				return;
+			}
+			res.setStatusCode(200).end("authenticated");
 
+		} catch (SignatureException e) {
+			c.fail(401);
+		}
 	}
 
 	private void handleUserLogout(RoutingContext c) {
+		c.response().setStatusCode(307).end("/logout.html");
+	}
 
+	private void refreshJWT(RoutingContext c) {
+		HttpServerResponse res = c.response();
+		try {
+			JsonObject body = c.getBodyAsJson();
+			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(KEY_PAIR.getPublic()).build()
+					.parseClaimsJws(body.getString("jwt"));
+			Claims claims = jwt.getBody();
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(new Date());
+			cal.add(Calendar.HOUR, 24);
+			claims.setExpiration(cal.getTime());
+			JwtBuilder builder = Jwts.builder();
+			builder.setClaims(claims);
+			builder.signWith(KEY_PAIR.getPrivate());
+			res.setStatusCode(200).end(builder.compact());
+		} catch (Exception e) {
+			log.warning(e.getMessage());
+			res.setStatusCode(500).end("Internal Server error");
+		}
 	}
 
 	private void newUser(final String name, final String password, final String ip) throws Exception {
@@ -163,6 +273,23 @@ public class HTTPServer extends AbstractVerticle {
 		Statement st = conn.createStatement();
 		String sql = String.format("SELECT name FROM public.users WHERE name='%s'", StringEscapeUtils.escapeSql(name));
 		return st.executeQuery(sql).next();
+	}
+
+	private User getUserInfo(String name) throws Exception {
+		log.info("Getting user info for: " + name);
+		Statement st = conn.createStatement();
+		String sql = String.format(
+				"SELECT users.name, users.password, array_agg(permissions.name) FROM users LEFT JOIN permissions ON users.permissions & permissions.bit != 0"
+						+ "WHERE users.name='%s' GROUP BY users.id;",
+				StringEscapeUtils.escapeSql(name));
+		ResultSet res = st.executeQuery(sql);
+		User u = new User();
+		if (res.next()) {
+			u.name = res.getString("name");
+			u.pwHash = res.getString("password");
+			u.perms = (String[]) res.getArray(3).getArray();
+		}
+		return u;
 	}
 
 	private String getPwHash(String name) throws Exception {
@@ -204,6 +331,20 @@ public class HTTPServer extends AbstractVerticle {
 			log.warning("Could not handle Ip");
 			log.warning(e.getMessage());
 		}
+	}
+
+	private String getJWT(User u) {
+		JwtBuilder jwt = Jwts.builder();
+		jwt.setIssuer(ISSUER);
+		Calendar c = Calendar.getInstance();
+		c.setTime(new Date());
+		c.add(Calendar.HOUR, 24);
+		jwt.setIssuedAt(new Date());
+		jwt.setExpiration(c.getTime());
+		jwt.setSubject(u.name);
+		jwt.claim("perms", u.perms);
+		jwt.signWith(KEY_PAIR.getPrivate());
+		return jwt.compact();
 	}
 
 	private ResultSet queryDb(String sql) throws SQLException {

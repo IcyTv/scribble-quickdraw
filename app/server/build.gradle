@@ -13,7 +13,9 @@ dependencies {
 	implementation 'io.vertx:vertx-core:4.0.0-milestone4';
 	implementation 'io.vertx:vertx-web:4.0.0-milestone4';
 	implementation 'org.netbeans.external:org-apache-commons-lang:RELEASE113';
-	implementation 'com.auth0:java-jwt:3.10.2'
-	compile 'org.bouncycastle:bcprov-jdk15on:1.59'
+	implementation 'com.10duke.client.jwt:jjwt:1.0.1';
+	implementation 'io.jsonwebtoken:jjwt-impl:0.11.1';
+	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.1'
+	implementation 'org.bouncycastle:bcprov-jdk15on:1.59';
 }
 
