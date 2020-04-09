@@ -6,16 +6,10 @@
 	"configurations": [
 		{
 			"type": "java",
-			"name": "CodeLens (Launch) - JWT",
+			"name": "CodeLens (Launch) - KeyUtils",
 			"request": "launch",
-			"mainClass": "utils.JWT",
+			"mainClass": "utils.KeyUtils",
 			"projectName": "server"
-		},
-		{
-			"type": "java",
-			"name": "Debug (Launch) - Current File",
-			"request": "launch",
-			"mainClass": "${file}"
 		},
 		{
 			"type": "java",
@@ -24,13 +18,6 @@
 			"mainClass": "http.HTTPServer",
 			"projectName": "server",
 			"vmArgs": "-Dvertxweb.environment=dev"
-		},
-		{
-			"type": "java",
-			"name": "Debug (Launch)-SocketServer<server>",
-			"request": "launch",
-			"mainClass": "socket.SocketServer",
-			"projectName": "server"
 		}
 	]
 }
