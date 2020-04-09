@@ -1,5 +1,5 @@
-import * as cookie from "cookie";
-import * as jwt_decode from "jwt-decode";
+import { serialize } from "cookie";
+import jwt_decode from "jwt-decode";
 
 window.onload = () => {
 	let login = document.getElementById("lg-form");
@@ -28,8 +28,8 @@ window.onload = () => {
 			})
 			.then((data) => {
 				let jwt = jwt_decode(data);
-				let c = cookie.serialize("jwt", data, {
-					expires: new Date(jwt.exp * 1000), //Because ms to s
+				let c = serialize("Authorization", "Bearer " + data, {
+					expires: new Date(jwt["exp"] * 1000), //Because ms to s
 					path: "/",
 				});
 				document.cookie = c;
@@ -39,6 +39,7 @@ window.onload = () => {
 				//DO A REDIRECT
 			})
 			.catch((err) => {
+				console.error(err);
 				errorP.innerHTML = err;
 				errorP.style.display = "block";
 				errorP.style.color = "red";

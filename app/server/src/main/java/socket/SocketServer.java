@@ -2,6 +2,7 @@ package socket;
 
 import java.lang.invoke.MethodHandles;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,7 +46,7 @@ public class SocketServer implements Handler<ServerWebSocket> {
 				event.writeTextMessage(msg.body().encodePrettily());
 			});
 		} catch (Exception e) {
-			log.fatal(e);
+			log.fatal("exception on send", e);
 		}
 	}
 
@@ -53,32 +54,86 @@ public class SocketServer implements Handler<ServerWebSocket> {
 	public void handle(ServerWebSocket event) {
 		Matcher m = path.matcher(event.path());
 		if (!m.matches()) {
+			log.warn("Wrong path");
 			event.reject();
 			return;
 		}
 		int room = Integer.parseInt(m.group(1));
+		log.trace(room);
 		String id = event.textHandlerID();
 		log.info("New client with id {} for room {}", id, room);
 
 		registerEventBus(room, event);
 
-		SharedData data = vertx.sharedData();
-		log.trace(event.headers());
-		String jwt = event.headers().get("Sec-WebSocket-Protocol").replace("Bearer ", "");
-		log.info(jwt);
-		if (JWT.verifyJWT(jwt)) {
-			data.getLocalMap(id).put("jwt", jwt);
+		String jwtString;
+		try {
+			jwtString = parseQuery(event.query(), "jwt");
+		} catch (NoSuchFieldException e) {
+			log.warn("Jwt token not found in query params", e);
+			event.reject(401);
+			return;
+		}
+		log.trace(jwtString);
+		JsonObject jwt = getJwtFromString(jwtString);
+		log.trace("Jwt: " + jwt.encodePrettily());
+
+		if (JWT.verifyJWT(jwtString) && !isUserInRoom(jwt, room)) {
+			log.trace("Valid jwt, logging in");
+			storeJwt(jwtString, id);
+			vertx.sharedData().<String, Object>getLocalMap("game.room." + room + ".users").put(jwt.getString("sub"), 0);
+
 			event.accept();
+			log.trace("Accepted handshake");
 		} else {
-			log.warn("Invalid jwt");
+			log.warn("Invalid jwt or user already in room");
 			event.reject(403);
 			return;
 		}
-		event.closeHandler(handleClose(id, room));
+
+		// String jwt = event.headers().get("Sec-WebSocket-Protocol").replace("Bearer ",
+		// "");
+		// log.info(jwt);
+		// if (JWT.verifyJWT(jwt)) {
+		// data.getLocalMap(id).put("jwt", jwt);
+		// event.accept();
+		// } else {
+		// log.warn("Invalid jwt");
+		// event.reject(403);
+		// return;
+		// }
+
+		event.closeHandler(handleClose(id, room, jwt));
+
+		event.endHandler(handleClose(id, room, jwt));
 
 		event.handler(handleData(id, room, event));
 
 		event.exceptionHandler(handleException(id));
+
+	}
+
+	private JsonObject getJwtFromString(String jwtString) {
+		return JWT.parseJwt(jwtString);
+	}
+
+	private JsonObject getJwt(String id) {
+		return vertx.sharedData().<String, JsonObject>getLocalMap(id).get("jwt");
+	}
+
+	private JsonObject storeJwt(String jwtString, String id) {
+		JsonObject jwt = JWT.parseJwt(jwtString);
+		vertx.sharedData().getLocalMap(id).put("jwt", jwt);
+		return jwt;
+	}
+
+	private String parseQuery(String query, String paramName) throws NoSuchFieldException {
+		String[] params = query.split("\\?");
+		for (String param : params) {
+			if (param.contains(paramName)) {
+				return param.split("=")[1];
+			}
+		}
+		throw new NoSuchFieldException("Query param not found");
 
 	}
 
@@ -93,21 +148,29 @@ public class SocketServer implements Handler<ServerWebSocket> {
 			try {
 				JsonObject json = ev.toJsonObject();
 				json.put("recieved", Instant.now());
+				json.put("currentPlayer", "Merlin");
 				DeliveryOptions opts = new DeliveryOptions();
 				opts.setSendTimeout(1000);
 				bus.publish("game.room." + room, json, opts);
 			} catch (Exception e) {
 				log.warn("Failed to handle data", e);
-				event.reject();
+				event.end();
 			}
 		};
 	}
 
-	private Handler<Void> handleClose(String id, int room) {
+	private Handler<Void> handleClose(String id, int room, JsonObject jwt) {
 		return ev -> {
 			log.info("Disconnecting user " + id + " from room " + room);
+			vertx.sharedData().getLocalMap("game.room." + room + ".users").remove(jwt.getString("sub"));
 		};
 
+	}
+
+	private boolean isUserInRoom(JsonObject jwt, int room) {
+		log.trace(vertx.sharedData().<String, Object>getLocalMap("game.room." + room + ".users").keySet());
+		return vertx.sharedData().<String, Object>getLocalMap("game.room." + room + ".users").keySet()
+				.contains(jwt.getString("sub"));
 	}
 
 }

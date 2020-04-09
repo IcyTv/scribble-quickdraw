@@ -11,6 +11,8 @@ import java.security.PublicKey;
 import java.security.interfaces.RSAKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,6 +32,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.io.EncodingException;
 import io.jsonwebtoken.security.Keys;
+import io.vertx.core.json.JsonObject;
 
 /**
  * JWT
@@ -47,28 +50,24 @@ public class JWT {
 			return true;
 
 		} catch (Exception e) {
-			log.warn(e);
+			log.warn(e.getMessage(), e);
 			return false;
 		}
 
 	}
 
-	private static PrivateKey getPriv(String filename) throws Exception {
-
-		byte[] keyBytes = Files.readAllBytes(Paths.get(filename));
-
-		PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-		KeyFactory kf = KeyFactory.getInstance("RSA");
-		return kf.generatePrivate(spec);
-	}
-
-	private static PublicKey getPub(String filename) throws Exception {
-
-		byte[] keyBytes = Files.readAllBytes(Paths.get(filename));
-
-		X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-		KeyFactory kf = KeyFactory.getInstance("RSA");
-		return kf.generatePublic(spec);
+	public static JsonObject parseJwt(String s) {
+		try {
+			JwtParserBuilder builder = Jwts.parserBuilder();
+			builder.requireIssuer(UserHandler.ISSUER);
+			builder.setSigningKey(HTTPServer.KEY_PAIR.getPublic());
+			Claims c = builder.build().parseClaimsJws(s).getBody();
+			log.trace(c);
+			return JsonObject.mapFrom((Map<String, Object>) c);
+		} catch (Exception e) {
+			log.warn(e.getMessage(), e);
+			return null;
+		}
 	}
 
 	public static void main(String[] args) {
