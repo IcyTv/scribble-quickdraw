@@ -60,6 +60,8 @@ public class HTTPServer extends AbstractVerticle {
 		router.post("/users/login").handler(UserHandler::handleUserLogin);
 		router.get("/users/get-room/:username").handler(UserHandler::handleUserRoom);
 		router.get("/rooms/list-users/:username").handler(RoomHandler::handleListUsers);
+		router.get("/rooms/join").handler(RoomHandler::handleJoin);
+		router.post("/rooms/add/:user").handler(RoomHandler::handleAddUser);
 		// router.get("/")
 
 		router.get("/auth/socket").handler(SocketTicketHandler::getTicket);
@@ -70,6 +72,11 @@ public class HTTPServer extends AbstractVerticle {
 		router.get("/logout").handler(UserHandler::handleUserLogout);
 
 		router.route("/*").handler(StaticHandler.create("../../dist/client"));
+
+		router.route().failureHandler(c -> {
+			Throwable err = c.failure();
+			log.fatal(err.getMessage(), err);
+		});
 
 		// ERROR HANDLING
 		auth.failureHandler(c -> {
@@ -93,6 +100,7 @@ public class HTTPServer extends AbstractVerticle {
 		HttpServer s = vertx.createHttpServer();
 		s.websocketHandler(new SocketServer(vertx));
 		s.requestHandler(router).listen(port, result -> {
+			log.info(result);
 			if (result.succeeded()) {
 				log.info("Started server on port " + port);
 				prom.complete();
@@ -105,6 +113,7 @@ public class HTTPServer extends AbstractVerticle {
 		vertx.exceptionHandler(ev -> {
 			log.fatal(ev.getMessage(), ev);
 		});
+
 	}
 
 	public static void main(final String[] args) throws Exception {

@@ -2,11 +2,8 @@ package http;
 
 import static sql.SQLTools.str;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -16,7 +13,6 @@ import java.util.Date;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.commons.validator.routines.InetAddressValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -35,16 +31,15 @@ import sql.SQLInsert;
 import sql.SQLQuery;
 import sql.SQLUpdate;
 import sql.ValuePair;
-import utils.KeyUtils;
 import utils.Toolbox;
+
+import static utils.Constants.JWT_KEY_PAIR;
 
 public class UserHandler {
 
 	private static final Logger log = LogManager.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static final String ISSUER = "scribble-server";
-
-	private static final KeyPair KEY_PAIR = Toolbox.keyPairNoEx();
 
 	static public void handleUserLogin(RoutingContext c) {
 		HttpServerResponse res = c.response();
@@ -76,7 +71,7 @@ public class UserHandler {
 		HttpServerResponse res = c.response();
 		String scope = StringEscapeUtils.escapeSql(c.request().getParam("scope"));
 		try {
-			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(KEY_PAIR.getPublic()).build()
+			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(JWT_KEY_PAIR.getPublic()).build()
 					.parseClaimsJws(body.getString("jwt"));
 			Claims claims = jwt.getBody();
 			if (claims.getExpiration().compareTo(new Date()) < 0) {
@@ -172,7 +167,7 @@ public class UserHandler {
 		HttpServerResponse res = c.response();
 		try {
 			JsonObject body = c.getBodyAsJson();
-			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(KEY_PAIR.getPublic()).build()
+			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(JWT_KEY_PAIR.getPublic()).build()
 					.parseClaimsJws(body.getString("jwt"));
 			Claims claims = jwt.getBody();
 			Calendar cal = Calendar.getInstance();
@@ -181,7 +176,7 @@ public class UserHandler {
 			claims.setExpiration(cal.getTime());
 			JwtBuilder builder = Jwts.builder();
 			builder.setClaims(claims);
-			builder.signWith(KEY_PAIR.getPrivate());
+			builder.signWith(JWT_KEY_PAIR.getPrivate());
 			res.setStatusCode(200).end(builder.compact());
 		} catch (Exception e) {
 			log.warn(e.getMessage());
@@ -307,7 +302,7 @@ public class UserHandler {
 		jwt.setExpiration(c.getTime());
 		jwt.setSubject(u.name);
 		jwt.claim("perms", u.perms);
-		jwt.signWith(KEY_PAIR.getPrivate());
+		jwt.signWith(JWT_KEY_PAIR.getPrivate());
 		return jwt.compact();
 	}
 
