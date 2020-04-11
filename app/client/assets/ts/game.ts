@@ -1,8 +1,8 @@
 import cookie from "cookie";
-import Url from "url-parse";
-import parser from "query-string";
-import p5 from "p5";
 import jwt_decode from "jwt-decode";
+import p5 from "p5";
+import parser from "query-string";
+import Url from "url-parse";
 
 let socket: WebSocket;
 let player;

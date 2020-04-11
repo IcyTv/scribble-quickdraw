@@ -2,6 +2,7 @@ import { serialize } from "cookie";
 import jwt_decode from "jwt-decode";
 
 window.onload = () => {
+	console.log("tester-moin");
 	let login = document.getElementById("lg-form");
 	let submit = login.querySelector("input[type=submit]");
 	let errorP = document.getElementById("err-box");
