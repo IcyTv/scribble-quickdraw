@@ -10,15 +10,17 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.icytv.scribble.utils.JWT;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.http.WebSocketFrame;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.shareddata.LocalMap;
-import de.icytv.scribble.utils.JWT;
 
 public class SocketServer implements Handler<ServerWebSocket> {
 
@@ -43,14 +45,19 @@ public class SocketServer implements Handler<ServerWebSocket> {
 
 	}
 
-	private void registerEventBus(int room, ServerWebSocket event) {
+	private MessageConsumer<JsonObject> registerEventBus(int room, ServerWebSocket event) {
 		try {
-			bus.<JsonObject>consumer("game.room." + room, msg -> {
+			MessageConsumer<JsonObject> c = bus.<JsonObject>consumer("game.room." + room, msg -> {
 				log.debug("Consumer Publishing to " + msg.address());
 				event.writeTextMessage(msg.body().encodePrettily());
 			});
+			c.exceptionHandler(ex -> {
+				log.error(ex.getMessage(), ex);
+			});
+			return c;
 		} catch (Exception e) {
 			log.fatal("exception on send", e);
+			return null;
 		}
 	}
 
@@ -67,7 +74,7 @@ public class SocketServer implements Handler<ServerWebSocket> {
 		String id = event.textHandlerID();
 		log.info("New client with id {} for room {}", id, room);
 
-		registerEventBus(room, event);
+		MessageConsumer<JsonObject> c = registerEventBus(room, event);
 
 		String jwtString;
 		try {
@@ -105,14 +112,26 @@ public class SocketServer implements Handler<ServerWebSocket> {
 			return;
 		}
 
-		event.closeHandler(handleClose(id, room, jwt));
+		event.frameHandler(handleFrame(id, room, jwt));
 
-		event.endHandler(handleClose(id, room, jwt));
+		event.closeHandler(handleClose(id, room, jwt, c));
 
-		event.handler(handleData(id, room, event));
+		event.endHandler(handleClose(id, room, jwt, c));
+
+		//event.handler(handleData(id, room, event));
 
 		event.exceptionHandler(handleException(id));
 
+	}
+
+	private Handler<WebSocketFrame> handleFrame(String id, int room, JsonObject jwt) {
+		return ev -> {
+			if(ev.isText()) {
+				log.debug("Text" , ev);
+			} else if(ev.isContinuation()) {
+				log.debug("Continuation", ev);
+			}
+		};
 	}
 
 	private JsonObject getJwtFromString(String jwtString) {
@@ -157,7 +176,6 @@ public class SocketServer implements Handler<ServerWebSocket> {
 				String cU = this.<String, String>getMap("game.room." + room + ".current").values().iterator().next();
 				json.put("currentPlayer", cU);
 				DeliveryOptions opts = new DeliveryOptions();
-				opts.setSendTimeout(1000);
 				bus.publish("game.room." + room, json, opts);
 			} catch (Exception e) {
 				log.warn("Failed to handle data", e);
@@ -169,7 +187,6 @@ public class SocketServer implements Handler<ServerWebSocket> {
 
 	private boolean validateData(JsonObject json) {
 		if (json.containsKey("data")) {
-			log.info(json.getJsonArray("data"));
 			return data.matcher(json.getJsonArray("data").encode()).matches();
 		} else {
 			log.warn("NO DATA KEY");
@@ -218,11 +235,17 @@ public class SocketServer implements Handler<ServerWebSocket> {
 		vertx.sharedData().<K, V>getLocalMap(map).remove(key);
 	}
 
-	private Handler<Void> handleClose(String id, int room, JsonObject jwt) {
+	private <K, V> void removeAll(String map) {
+		vertx.sharedData().<K,V>getLocalMap(map).clear();
+	}
+
+	private Handler<Void> handleClose(String id, int room, JsonObject jwt, MessageConsumer<JsonObject> c) {
 		return ev -> {
 			log.info("Disconnecting user " + id + " from room " + room);
 			// vertx.sharedData().getLocalMap("game.room." + room +
 			// ".users").remove(jwt.getString("sub"));
+			c.unregister();
+			removeAll(id);
 			remove(jwt.getString("sub"), "game.room." + room + ".users");
 		};
 

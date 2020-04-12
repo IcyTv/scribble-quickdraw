@@ -5,6 +5,7 @@ import buffer from "gulp-buffer";
 import debug from "gulp-debug";
 import ejs from "gulp-ejs";
 import fileAssets from "gulp-file-assets";
+import gulpif from "gulp-if";
 import beautify from "gulp-jsbeautifier";
 import rename from "gulp-rename";
 import sass from "gulp-sass";
@@ -12,11 +13,20 @@ import sourcemaps from "gulp-sourcemaps";
 import validator from "gulp-w3c-html-validator";
 import reduce from "gulp-watchify-factor-bundle";
 import tsify from "tsify";
+import yargs from "yargs";
+
+const argv = yargs.options({
+	browser: { type: "boolean", default: false },
+	out: { type: "string", default: "src/test/public" },
+}).argv;
 
 const mode = require("gulp-mode")({
 	modes: ["production", "development"],
 	default: "development",
 });
+
+const srcDir = "src/main/public";
+const outDir = argv.out;
 
 sass.compiler = dart;
 
@@ -28,7 +38,7 @@ const beautifyOpt = {
 };
 
 task("ts", () => {
-	const basedir = "app/client/assets/ts";
+	const basedir = srcDir + "/assets/ts";
 	const b = reduce.create({
 		basedir: basedir,
 		debug: true,
@@ -36,7 +46,7 @@ task("ts", () => {
 	});
 	b.plugin(tsify);
 	return reduce
-		.src("app/client/assets/ts/*.ts")
+		.src(srcDir + "/assets/ts/*.ts")
 		.pipe(
 			reduce.bundle(b, {
 				common: "common.js",
@@ -49,46 +59,43 @@ task("ts", () => {
 				extname: ".js",
 			})
 		)
-		.pipe(reduce.dest("dist/client/assets/js"));
+		.pipe(reduce.dest(outDir + "/assets/js"));
 });
 
 task("css", () => {
-	return src("app/client/assets/css/**.scss")
+	return src(srcDir + "/assets/css/**.scss")
 		.pipe(mode.development(sourcemaps.init()))
 		.pipe(sass())
 		.on("error", sass.logError)
 		.pipe(mode.development(beautify(beautifyOpt)))
 		.pipe(mode.development(sourcemaps.write()))
-		.pipe(dest("dist/client/assets/css"));
+		.pipe(dest(outDir + "/assets/css"));
 });
 
 task("html", (cb) => {
-	src("app/client/**.html")
+	src(srcDir + "/**.html")
 		.pipe(
 			fileAssets({
 				excludes: ["html", "css", "js"],
 			})
 		)
-		.pipe(dest("dist/client"));
-	return (
-		src("app/client/**.html")
-			.pipe(
-				ejs({
-					root: "/app/client/assets/html",
-					compileDebug: true,
-				})
-			)
-			.pipe(mode.development(beautify(beautifyOpt)))
-			//.pipe(cat())
-			.pipe(validator())
-			.pipe(dest("dist/client"))
-	);
+		.pipe(dest(outDir));
+	return src(srcDir + "/**.html")
+		.pipe(
+			ejs({
+				root: srcDir + "/assets/html",
+				compileDebug: true,
+			})
+		)
+		.pipe(mode.development(beautify(beautifyOpt)))
+		.pipe(validator())
+		.pipe(dest(outDir));
 });
 
 task("browser", () => {
 	browserSync.init({
 		server: {
-			baseDir: "./dist/client",
+			baseDir: outDir,
 		},
 		open: false,
 	});
@@ -102,27 +109,35 @@ task("default", parallel("ts", "css", "html"));
 
 task(
 	"watch",
-	series("default", () => {
-		browserSync.init({
-			server: {
-				baseDir: "dist/client",
-			},
-		});
-		let html = watch("./app/client/**/*.html", parallel("html"));
+	series("default", (cb) => {
+		if (argv.browser) {
+			browserSync.init({
+				server: {
+					baseDir: outDir,
+				},
+			});
+		}
+		let html = watch(srcDir + "/**/*.html", parallel("html"));
 		html.on("change", (ev) => {
-			console.log(ev);
-			browserSync.notify("Compiling, please wait!");
-			series("html");
-			browserSync.reload("*.html");
+			if (argv.browser) {
+				browserSync.notify("Compiling, please wait!");
+				series("html");
+				browserSync.reload("*.html");
+			} else {
+				parallel("html");
+			}
 		});
-		let css = watch("./app/client/assets/css/**/*.scss", parallel("css"));
+		let css = watch(srcDir + "/assets/css/**/*.scss", parallel("css"));
 		css.on("change", (ev) => {
-			console.log(ev);
-			browserSync.notify("Compiling, please wait!");
-			series("css");
-			browserSync.reload("*.css");
+			if (argv.browser) {
+				browserSync.notify("Compiling, please wait!");
+				series("css");
+				browserSync.reload("*.css");
+			} else {
+				parallel("css");
+			}
 		});
-		let basedir = "app/client/assets/ts";
+		let basedir = srcDir + "/assets/ts";
 
 		// Create a browserify instance
 		// same with `browserify(opts)`
@@ -139,13 +154,15 @@ task(
 		// same with gulp.src()
 
 		reduce
-			.src("app/client/assets/ts/*.ts")
+			.src(srcDir + "/assets/ts/*.ts")
 			// apply `factor-bundle` and `watchify`
 			.pipe(reduce.watch(b, { common: "common.js" }, { debug: true }))
 			// whenever `b.bundle()` is called,
 			// event 'bundle' is fired
 			.on("bundle", function (vinylStream) {
-				browserSync.notify("Compiling, please wait!");
+				if (argv.browser) {
+					browserSync.notify("Compiling, please wait!");
+				}
 				vinylStream
 					// same with gulp.dest
 					.pipe(buffer())
@@ -154,15 +171,9 @@ task(
 							extname: ".js",
 						})
 					)
-					.pipe(reduce.dest("dist/client/assets/js", {}))
-					.pipe(browserSync.stream());
+					.pipe(reduce.dest(outDir + "/assets/js", {}))
+					.pipe(gulpif(argv.browser, browserSync.stream()));
 			});
-		// let ts = watch("app/client/assets/ts/**/*.ts");
-		// ts.on("change", (ev) => {
-		// 	console.log(ev);
-		// 	series("ts");
-		// 	browserSync.notify("Compiling, please wait!");
-		// 	browserSync.reload("*.js");
-		// });
+		cb();
 	})
 );

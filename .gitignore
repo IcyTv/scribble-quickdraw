@@ -163,3 +163,5 @@ gradle-app.setting
 # End of https://www.gitignore.io/api/gradle
 keys/
 .vscode/tasks.json
+src/test/public
+static/

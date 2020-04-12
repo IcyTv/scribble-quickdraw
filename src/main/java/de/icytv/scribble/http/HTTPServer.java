@@ -104,7 +104,7 @@ public class HTTPServer extends AbstractVerticle {
 		});
 
 		vertx.exceptionHandler(ev -> {
-			log.fatal(ev.getMessage(), ev);
+			log.fatal(ev.getLocalizedMessage(), ev);
 		});
 
 	}

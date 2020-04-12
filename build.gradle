@@ -18,6 +18,7 @@ plugins {
     id 'com.github.node-gradle.gulp' version '1.5.3'
 
     id "ru.akman.vscode-tasks" version "0.4.0"
+    id "com.dorongold.task-tree" version "1.5"
 }
 
 repositories {
@@ -55,4 +56,25 @@ application {
     mainClassName = 'de.icytv.scribble.App'
 }
 
-build.dependsOn 'gulp_default'
+task initAll {
+    dependsOn 'npmInstall'
+    dependsOn 'installGulp'
+}
+
+task watch(type: GulpTask) {
+    args = ["watch", "--out", "static"]
+}
+
+task watchAll(type: JavaExec) {
+    main = "de.icytv.scribble.App";
+    classpath = sourceSets.main.runtimeClasspath
+    def proc = (System.getProperty("user.dir") + "/node_modules/.bin/gulp.cmd watch").execute();
+    if(project.hasProperty("showGulp")) {
+        proc.consumeProcessOutput(System.out, System.err);
+    }
+    //proc.waitFor()
+}
+
+task devFront(type: GulpTask) {
+    args = ["watch", "--browser"]
+}
