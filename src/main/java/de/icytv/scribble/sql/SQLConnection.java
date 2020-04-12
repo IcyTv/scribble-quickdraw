@@ -27,6 +27,7 @@ public class SQLConnection {
 			String url = (System.getenv("POSTGRES_URL") == null) ? "jdbc:postgresql://localhost:" + port + "/" + db:  "jdbc:postgresql://" + System.getenv("POSTGRES_URL") + ":" + port + "/" + db;
 			String user = (System.getenv("POSTGRES_USER") == null) ? "postgres": System.getenv("POSTGRES_USER");
 			String pw = (System.getenv("POSTGRES_PW") == null) ? "postgres": System.getenv("POSTGRES_PW");
+			System.out.println(url + "   " + user + " " + pw);
 			conn = DriverManager.getConnection(url, user, pw);
 			conn.setAutoCommit(true);
 
