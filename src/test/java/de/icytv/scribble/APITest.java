@@ -4,12 +4,15 @@ import static io.vertx.junit5.web.TestRequest.testRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import de.icytv.scribble.http.HTTPServer;
+import de.icytv.scribble.sql.SQLInsert;
+import de.icytv.scribble.sql.ValuePair;
 import de.icytv.scribble.utils.JWT;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
@@ -29,6 +32,11 @@ public class APITest {
 
 	@WebClientOptionsInject
 	public WebClientOptions opts = new WebClientOptions().setDefaultPort(PORT);
+
+	@BeforeAll
+	public void setUp() throws Exception {
+		SQLInsert.insert("users", new ValuePair("username", "test"), new ValuePair("password", "password"));
+	}
 
 	@BeforeEach
 	@DisplayName("Deploy Server")
@@ -51,6 +59,12 @@ public class APITest {
 	@DisplayName("Verticle still up?")
 	public void lastChecks(Vertx vertx) {
 		assertThat(vertx.deploymentIDs()).isNotEmpty().hasSize(1);
+	}
+
+	@AfterAll
+	@DisplayName("Clean up postgres")
+	public void tearDown() throws SQLException{
+		SQLDelete.delete("users", "name=test");
 	}
 
 }
