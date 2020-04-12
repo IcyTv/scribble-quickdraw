@@ -9,18 +9,19 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
+import de.icytv.scribble.http.UserHandler;
 import de.icytv.scribble.sql.SQLDelete;
-import de.icytv.scribble.sql.SQLInsert;
 import de.icytv.scribble.sql.SQLQuery;
-import de.icytv.scribble.sql.ValuePair;
 
 @DisplayName("Sql tests")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SQLTest {
 
 	@BeforeAll
-	public void setUp() throws SQLException {
-		SQLInsert.insert("users", new ValuePair("username", "test"), new ValuePair("password", "password"));
+	public void setUp() throws Exception {
+		UserHandler.newUser("test", "password", "127.0.0.1");
 	}
 
 	@Test

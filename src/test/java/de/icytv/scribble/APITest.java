@@ -11,9 +11,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import de.icytv.scribble.http.HTTPServer;
+import de.icytv.scribble.http.UserHandler;
 import de.icytv.scribble.sql.SQLDelete;
 import de.icytv.scribble.sql.SQLInsert;
 import de.icytv.scribble.sql.ValuePair;
@@ -29,6 +31,7 @@ import io.vertx.junit5.web.VertxWebClientExtension;
 import io.vertx.junit5.web.WebClientOptionsInject;
 
 @ExtendWith({ VertxExtension.class, VertxWebClientExtension.class })
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Api tests")
 public class APITest {
 
@@ -39,7 +42,7 @@ public class APITest {
 
 	@BeforeAll
 	public void setUp() throws Exception {
-		SQLInsert.insert("users", new ValuePair("username", "test"), new ValuePair("password", "password"));
+		UserHandler.newUser("test", "password", "127.0.0.1");
 	}
 
 	@BeforeEach

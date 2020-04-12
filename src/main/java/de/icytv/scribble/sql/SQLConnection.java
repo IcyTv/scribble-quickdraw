@@ -9,6 +9,8 @@ import java.sql.Statement;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.icytv.scribble.utils.Toolbox;
+
 public class SQLConnection {
 
 	private static SQLConnection active;
@@ -27,10 +29,12 @@ public class SQLConnection {
 			String pw = (System.getenv("POSTGRES_PW") == null) ? "postgres": System.getenv("POSTGRES_PW");
 			conn = DriverManager.getConnection(url, user, pw);
 			conn.setAutoCommit(true);
+
+			setUpTables();
 		} catch (SQLException e) {
 			// Catch statement because of use in static final context
 			e.printStackTrace();
-			throw new IllegalStateException(e.getMessage());
+			//throw new IllegalStateException(e.getMessage());
 		}
 	}
 
@@ -47,6 +51,12 @@ public class SQLConnection {
 			active = new SQLConnection();
 		}
 		return active;
+	}
+
+	private void setUpTables() throws SQLException {
+		Statement stmt = conn.createStatement();
+		String sql = Toolbox.readFromFile("postgres-bak.sql");
+		stmt.execute(sql);
 	}
 
 }

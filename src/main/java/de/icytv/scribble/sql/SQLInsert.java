@@ -30,6 +30,7 @@ public abstract class SQLInsert {
 	public static void executeInsert(String sql) throws SQLException {
 		Statement stmt = conn.createStatement();
 		log.trace(sql);
+		System.out.println(sql);
 		stmt.executeUpdate(sql);
 
 	}
