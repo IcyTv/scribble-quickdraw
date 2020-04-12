@@ -1,6 +1,5 @@
 package de.icytv.scribble;
 
-import static io.vertx.junit5.web.TestRequest.statusCode;
 import static io.vertx.junit5.web.TestRequest.testRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,12 +45,6 @@ public class APITest {
 		testRequest(client, HttpMethod.POST, "/users/login").sendJson(data, testContext).onComplete((dt) -> {
 			assertThat(JWT.verifyJWT(dt.result().bodyAsString())).isTrue();
 		});
-	}
-
-	@Test
-	@DisplayName("Test")
-	public void testUserRoom(WebClient client, VertxTestContext testContext) {
-		testRequest(client, HttpMethod.GET, "/users/get-room/test").expect(statusCode(200)).send(testContext);
 	}
 
 	@AfterEach
