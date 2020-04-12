@@ -15,4 +15,4 @@ jobs:
       - uses: eskatos/gradle-command-action@v1
         with:
           gradle-version: 6.3
-          arguments: initAll gulp_default build test --no-daemon
+          arguments: initAll buildGulp build test --no-daemon

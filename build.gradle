@@ -74,6 +74,10 @@ task watch(type: GulpTask) {
     args = ["watch", "--out", "static"]
 }
 
+task buildGulp(type: GulpTask) {
+    args = ["default", "--out", "static"]
+}
+
 
 // TODO Implement properly...........
 // task watchAll(type: JavaExec) {
