@@ -3,6 +3,9 @@ package de.icytv.scribble;
 import static io.vertx.junit5.web.TestRequest.testRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.SQLException;
+
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import de.icytv.scribble.http.HTTPServer;
+import de.icytv.scribble.sql.SQLDelete;
 import de.icytv.scribble.sql.SQLInsert;
 import de.icytv.scribble.sql.ValuePair;
 import de.icytv.scribble.utils.JWT;
