@@ -135,7 +135,7 @@ INSERT INTO public.permissions
 VALUES(8, 'group-all');
 INSERT INTO public.permissions
     (bit, name)
-VALUES(1, 'group-view');
+VALUES(16, 'group-view');
 
 
 --
