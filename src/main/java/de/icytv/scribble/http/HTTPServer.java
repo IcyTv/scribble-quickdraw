@@ -9,6 +9,8 @@ import org.apache.logging.log4j.Logger;
 import de.icytv.scribble.socket.SocketServer;
 import de.icytv.scribble.utils.Toolbox;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
@@ -35,12 +37,27 @@ public class HTTPServer extends AbstractVerticle {
 	private Router router;
 	private final int port;
 
+	private Handler<AsyncResult<HttpServer>> testHandler;
+
+	private boolean startSocket = true;
+	private boolean startApi = true;
+	private boolean startStaticFiles = true;
+
 	public HTTPServer(final int port) throws Exception {
 		this.port = port;
 
 		// log.info(PUBLIC_KEY.toString());
 		// log.info(PRIVATE_KEY.toString());
 	}
+
+	public HTTPServer(int port, boolean startSocket, boolean startApi,
+			boolean startStaticFiles) {
+		this.port = port;
+		this.startSocket = startSocket;
+		this.startApi = startApi;
+		this.startStaticFiles = startStaticFiles;
+	}
+	
 
 	@Override
 	public void start(Promise<Void> prom) {
@@ -92,7 +109,8 @@ public class HTTPServer extends AbstractVerticle {
 
 		HttpServer s = vertx.createHttpServer();
 		s.websocketHandler(new SocketServer(vertx));
-		s.requestHandler(router).listen(port, result -> {
+		Handler<AsyncResult<HttpServer>> listenHandler = (testHandler != null) ? testHandler:
+		result -> {
 			log.info(result);
 			if (result.succeeded()) {
 				log.info("Started server on port " + port);
@@ -101,7 +119,8 @@ public class HTTPServer extends AbstractVerticle {
 				log.fatal("Failed to start server", result.cause());
 				prom.fail(result.cause());
 			}
-		});
+		};
+		s.requestHandler(router).listen(port, listenHandler);
 
 		vertx.exceptionHandler(ev -> {
 			log.fatal(ev.getLocalizedMessage(), ev);

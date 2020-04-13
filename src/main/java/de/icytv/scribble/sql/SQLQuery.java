@@ -23,7 +23,7 @@ public abstract class SQLQuery {
 	 * @throws SQLException on SQL formatting Error
 	 */
 	public static ResultSet query(String table, String column) throws SQLException {
-		return executeQuery(String.format("SELECT %s FROM %s;", table, column));
+		return executeQuery(String.format("SELECT %s FROM %s;", column, table));
 	}
 
 	/**

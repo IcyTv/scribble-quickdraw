@@ -1,9 +1,9 @@
 package de.icytv.scribble.http;
 
 import static de.icytv.scribble.sql.SQLTools.str;
+import static de.icytv.scribble.utils.Constants.JWT_KEY_PAIR;
 
 import java.lang.invoke.MethodHandles;
-import java.security.KeyPair;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -18,6 +18,11 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import de.icytv.scribble.sql.SQLInsert;
+import de.icytv.scribble.sql.SQLQuery;
+import de.icytv.scribble.sql.SQLUpdate;
+import de.icytv.scribble.sql.ValuePair;
+import de.icytv.scribble.utils.Toolbox;
 //Maybe at some point change to io.vertx.jwt, but conflict with user etc...
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
@@ -27,13 +32,6 @@ import io.jsonwebtoken.security.SignatureException;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import de.icytv.scribble.sql.SQLInsert;
-import de.icytv.scribble.sql.SQLQuery;
-import de.icytv.scribble.sql.SQLUpdate;
-import de.icytv.scribble.sql.ValuePair;
-import de.icytv.scribble.utils.Toolbox;
-
-import static de.icytv.scribble.utils.Constants.JWT_KEY_PAIR;
 
 public class UserHandler {
 
@@ -184,7 +182,7 @@ public class UserHandler {
 		}
 	}
 
-	private static void newUser(final String name, final String password, final String ip) throws Exception {
+	public static void newUser(final String name, final String password, final String ip) throws Exception {
 		String ename = StringEscapeUtils.escapeSql(name);
 		final PasswordEncoder pw = new BCryptPasswordEncoder();
 		final String encpw = pw.encode(password);
