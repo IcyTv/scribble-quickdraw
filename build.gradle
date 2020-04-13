@@ -74,15 +74,21 @@ task watch(type: GulpTask) {
     args = ["watch", "--out", "static"]
 }
 
-task watchAll(type: JavaExec) {
-    main = "de.icytv.scribble.App";
-    classpath = sourceSets.main.runtimeClasspath
-    def proc = (System.getProperty("user.dir") + "/node_modules/.bin/gulp.cmd watch").execute();
-    if(project.hasProperty("showGulp")) {
-        proc.consumeProcessOutput(System.out, System.err);
-    }
-    //proc.waitFor()
+task buildGulp(type: GulpTask) {
+    args = ["default", "--out", "static"]
 }
+
+
+// TODO Implement properly...........
+// task watchAll(type: JavaExec) {
+//     main = "de.icytv.scribble.App";
+//     classpath = sourceSets.main.runtimeClasspath
+//     def proc = (System.getProperty("user.dir") + "/node_modules/.bin/gulp.cmd watch").execute();
+//     if(project.hasProperty("showGulp")) {
+//         proc.consumeProcessOutput(System.out, System.err);
+//     }
+//     //proc.waitFor()
+// }
 
 task devFront(type: GulpTask) {
     args = ["watch", "--browser"]

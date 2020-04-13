@@ -1,16 +1,22 @@
 package de.icytv.scribble;
 
-import static io.vertx.junit5.web.TestRequest.statusCode;
 import static io.vertx.junit5.web.TestRequest.testRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.SQLException;
+
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import de.icytv.scribble.http.HTTPServer;
+import de.icytv.scribble.http.UserHandler;
+import de.icytv.scribble.sql.SQLDelete;
 import de.icytv.scribble.utils.JWT;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
@@ -23,6 +29,7 @@ import io.vertx.junit5.web.VertxWebClientExtension;
 import io.vertx.junit5.web.WebClientOptionsInject;
 
 @ExtendWith({ VertxExtension.class, VertxWebClientExtension.class })
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Api tests")
 public class APITest {
 
@@ -30,6 +37,11 @@ public class APITest {
 
 	@WebClientOptionsInject
 	public WebClientOptions opts = new WebClientOptions().setDefaultPort(PORT);
+
+	@BeforeAll
+	public void setUp() throws Exception {
+		UserHandler.newUser("test", "password", "127.0.0.1");
+	}
 
 	@BeforeEach
 	@DisplayName("Deploy Server")
@@ -48,16 +60,15 @@ public class APITest {
 		});
 	}
 
-	@Test
-	@DisplayName("Test")
-	public void testUserRoom(WebClient client, VertxTestContext testContext) {
-		testRequest(client, HttpMethod.GET, "/users/get-room/test").expect(statusCode(200)).send(testContext);
-	}
-
 	@AfterEach
 	@DisplayName("Verticle still up?")
 	public void lastChecks(Vertx vertx) {
 		assertThat(vertx.deploymentIDs()).isNotEmpty().hasSize(1);
 	}
 
+	@AfterAll
+	@DisplayName("Clean up postgres")
+	public void tearDown() throws SQLException {
+		SQLDelete.delete("users", "name='test'");
+	}
 }
