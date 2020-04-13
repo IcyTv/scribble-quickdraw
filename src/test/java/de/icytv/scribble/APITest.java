@@ -17,8 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import de.icytv.scribble.http.HTTPServer;
 import de.icytv.scribble.http.UserHandler;
 import de.icytv.scribble.sql.SQLDelete;
-import de.icytv.scribble.sql.SQLInsert;
-import de.icytv.scribble.sql.ValuePair;
 import de.icytv.scribble.utils.JWT;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
@@ -70,8 +68,8 @@ public class APITest {
 
 	@AfterAll
 	@DisplayName("Clean up postgres")
-	public void tearDown() throws SQLException{
-		SQLDelete.delete("users", "name=test");
+	public void tearDown() throws SQLException {
+		SQLDelete.delete("users", "name='test'");
 	}
 
 }

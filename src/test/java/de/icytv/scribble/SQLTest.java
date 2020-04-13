@@ -39,6 +39,6 @@ public class SQLTest {
 
 	@AfterAll
 	public void tearDown() throws SQLException {
-		SQLDelete.delete("users", "name=test");
+		SQLDelete.delete("users", "name='test'");
 	}
 }
