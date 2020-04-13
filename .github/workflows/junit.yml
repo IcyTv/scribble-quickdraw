@@ -28,7 +28,6 @@ jobs:
           arguments: initAll buildGulp build --no-daemon
         env:
           POSTGRES_DB: postgres
-          POSTGRES_PORT: ${{ job.services.postgres.port[5432] }}
       - if: always()
         uses: actions/upload-artifact@v1
         with:
