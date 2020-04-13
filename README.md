@@ -1,5 +1,7 @@
 # scribble-quickdraw
 
+![Run JUnit5 tests](https://github.com/IcyTv/scribble-quickdraw/workflows/Run%20JUnit5%20tests/badge.svg?branch=master)
+
 A Scribble.io clone with [google quickdraw](https://github.com/googlecreativelab/quickdraw-dataset) trained AI integration
 
 ## Building and developing
