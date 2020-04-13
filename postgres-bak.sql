@@ -121,21 +121,21 @@ DEFAULT nextval
 
 -- COPY public.permissions
 --("bit", name) FROM stdin;
-INSERT INTO permissions
-    (bit, name1)
-VALUES(1, 'user-view')
-INSERT INTO permissions
-    (bit, name1)
-VALUES(2, 'user-edit')
-INSERT INTO permissions
-    (bit, name1)
-VALUES(4, 'play')
-INSERT INTO permissions
-    (bit, name1)
-VALUES(8, 'group-all')
-INSERT INTO permissions
-    (bit, name1)
-VALUES(1, 'group-view')
+INSERT INTO public.permissions
+    (bit, name)
+VALUES(1, 'user-view');
+INSERT INTO public.permissions
+    (bit, name)
+VALUES(2, 'user-edit');
+INSERT INTO public.permissions
+    (bit, name)
+VALUES(4, 'play');
+INSERT INTO public.permissions
+    (bit, name)
+VALUES(8, 'group-all');
+INSERT INTO public.permissions
+    (bit, name)
+VALUES(1, 'group-view');
 
 
 --
