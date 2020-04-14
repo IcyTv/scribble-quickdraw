@@ -165,3 +165,5 @@ keys/
 .vscode/tasks.json
 src/test/public
 static/
+.settings
+.classpath
