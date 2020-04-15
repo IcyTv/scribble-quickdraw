@@ -4,6 +4,10 @@
 
 A Scribble.io clone with [google quickdraw](https://github.com/googlecreativelab/quickdraw-dataset) trained AI integration
 
+## API
+
+For API docs click [here](https://stoplight.io/p/docs/gh/icytv/scribble-quickdraw-api)
+
 ## Building and developing
 
 To get started run `gradlew initAll`. This will install npm and gulp for you. To build the frontend files, run `gradlew gulp_default` and to build the Backend (Server) files, run `gradlew build`. In order to run the application, just execute `gradlew run`. To do both, just combine the commands: `gradlew gulp_default run`
