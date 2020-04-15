@@ -24,9 +24,6 @@ public class HTTPServer extends AbstractVerticle {
 
 	private static final Logger log = LogManager.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final String POSTGRES_URL = "jdbc:postgresql://192.168.178.97:5432/scribble";
-	public static final String POSTGRES_USER = "unpriv";
-	public static final String POSTGRES_PW = "gMvDapsv586HZ7K74a9i";
 	public static final KeyPair KEY_PAIR = Toolbox.keyPairNoEx();
 
 	// public static final RSAKey PUBLIC_KEY = (RSAKey)
@@ -72,7 +69,6 @@ public class HTTPServer extends AbstractVerticle {
 		router.get("/rooms/list-users/:username").handler(RoomHandler::handleListUsers);
 		router.get("/rooms/join").handler(RoomHandler::handleJoin);
 		router.post("/rooms/add/:user").handler(RoomHandler::handleAddUser);
-		// router.get("/")
 
 		router.get("/auth/socket").handler(SocketTicketHandler::getTicket);
 
