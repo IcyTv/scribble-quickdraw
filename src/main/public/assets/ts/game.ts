@@ -4,6 +4,7 @@ import p5 from "p5";
 import * as svg from "p5.js-svg";
 import parser from "query-string";
 import Url from "url-parse";
+import simplify from "simplify-js";
 
 let socket: WebSocket;
 let player;
@@ -39,6 +40,7 @@ interface sketch {
 	width: number;
 	height: number;
 	pic: { x: number; y: number }[][];
+	buf: {coords: {x: number, y: number}[], index: number};
 	sendInt: NodeJS.Timeout;
 }
 
@@ -47,16 +49,29 @@ const s = (p: p5) => {
 		width: innerWidth - innerWidth / 5,
 		height: innerHeight,
 		pic: [],
+		buf: undefined,
 		sendInt: null,
 	};
+
+	let send = () => {
+		let index = d.buf.index;
+		let coords = d.buf.coords;
+		let simple = simplify(coords);
+		console.log(coords);
+		d.buf.coords = [];
+		d.buf.index += 1;
+		socket.send(JSON.stringify({
+			coords: simple,
+			index: index
+		}))
+	}
 
 	p.setup = () => {
 		let canvas = p.createCanvas(d.width, d.height, svg.SVG);
 		canvas.parent("p5-sketch");
-		d.sendInt = setInterval(send, 100);
+		//d.sendInt = setInterval(send, 100);
 	};
 
-	function send() {}
 
 	p.draw = () => {
 		p.background(0);
@@ -75,6 +90,7 @@ const s = (p: p5) => {
 
 	p.touchStarted = () => {
 		d.pic.push([]);
+		d.sendInt = setInterval(send, 100);
 	};
 
 	p.touchMoved = (ev: MouseEvent) => {
@@ -87,11 +103,8 @@ const s = (p: p5) => {
 
 	p.touchEnded = () => {
 		let last = d.pic.length - 1;
-		// socket.send(
-		// 	JSON.stringify({
-		// 		data: d.pic[last],
-		// 	})
-		// );
+		clearInterval(d.sendInt);
+		d.buf.index = 0;
 	};
 
 	socket.onmessage = (ev) => {
@@ -99,8 +112,11 @@ const s = (p: p5) => {
 		let json = JSON.parse(ev.data);
 		if (json.currentPlayer != player) {
 			console.log(json.currentPlayer);
-			//console.log(player);
-			d.pic.push(json.data);
+			if(json.append) {
+				d.pic[d.pic.length - 1].concat(json.data);
+			} else {
+				d.pic.push(json.data);
+			}
 		}
 	};
 };

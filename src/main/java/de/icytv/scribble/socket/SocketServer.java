@@ -112,27 +112,27 @@ public class SocketServer implements Handler<ServerWebSocket> {
 			return;
 		}
 
-		event.frameHandler(handleFrame(id, room, jwt));
+		//event.frameHandler(handleFrame(id, room, jwt));
 
 		event.closeHandler(handleClose(id, room, jwt, c));
 
 		event.endHandler(handleClose(id, room, jwt, c));
 
-		//event.handler(handleData(id, room, event));
+		event.handler(handleData(id, room, event));
 
 		event.exceptionHandler(handleException(id));
 
 	}
 
-	private Handler<WebSocketFrame> handleFrame(String id, int room, JsonObject jwt) {
-		return ev -> {
-			if(ev.isText()) {
-				log.debug("Text" , ev);
-			} else if(ev.isContinuation()) {
-				log.debug("Continuation", ev);
-			}
-		};
-	}
+	// private Handler<WebSocketFrame> handleFrame(String id, int room, JsonObject jwt) {
+	// 	return ev -> {
+	// 		if(ev.isText()) {
+	// 			log.debug("Text" , ev);
+	// 		} else if(ev.isContinuation()) {
+	// 			log.debug("Continuation", ev);
+	// 		}
+	// 	};
+	// }
 
 	private JsonObject getJwtFromString(String jwtString) {
 		return JWT.parseJwt(jwtString);
@@ -175,6 +175,7 @@ public class SocketServer implements Handler<ServerWebSocket> {
 				json.put("recieved", Instant.now());
 				String cU = this.<String, String>getMap("game.room." + room + ".current").values().iterator().next();
 				json.put("currentPlayer", cU);
+				json.put("append", json.getInteger("index") == 0);
 				DeliveryOptions opts = new DeliveryOptions();
 				bus.publish("game.room." + room, json, opts);
 			} catch (Exception e) {
@@ -187,26 +188,11 @@ public class SocketServer implements Handler<ServerWebSocket> {
 
 	private boolean validateData(JsonObject json) {
 		if (json.containsKey("data")) {
-			return data.matcher(json.getJsonArray("data").encode()).matches();
+			return data.matcher(json.getJsonArray("data").encode()).matches() && json.containsKey("index");
 		} else {
 			log.warn("NO DATA KEY");
 			return false;
 		}
-		// try {
-		// JsonArray arr = json.getJsonArray("data");
-		// for (Object obj : arr) {
-		// JsonObject jobj = (JsonObject) obj;
-		// if (!jobj.containsKey("x") || !jobj.containsKey("y")) {
-		// return false;
-		// }
-		// }
-		// log.info("Validated " + arr.encode());
-		// log.info(data.matcher(arr.encode()).matches());
-		// return true;
-		// } catch (ClassCastException | NullPointerException e) {
-		// log.info("Data invalid, because " + e.getMessage());
-		// return false;
-		// }
 	}
 
 	public void changeCurrentUser(int room, String id, String name) {
