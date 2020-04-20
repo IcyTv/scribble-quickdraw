@@ -1,5 +1,8 @@
 package de.icytv.scribble.http;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 public class User {
 
 	public String name;
@@ -12,8 +15,11 @@ public class User {
 		this.perms = perms;
 	}
 
-	public User() {
+	public User() {}
 
+	public static String encPw(String password) {
+		final PasswordEncoder pw = new BCryptPasswordEncoder();
+		return pw.encode(password);
 	}
 
 }

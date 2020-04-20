@@ -38,8 +38,9 @@ public class SocketServer implements Handler<ServerWebSocket> {
 		this.vertx = vertx;
 		this.bus = this.vertx.eventBus();
 
+		//For debugging purposes
 		bus.addOutboundInterceptor(ev -> {
-			log.trace("Outbound " + ev.message().address());
+			// log.trace("Outbound " + ev.message().address());
 			ev.next();
 		});
 
@@ -48,7 +49,7 @@ public class SocketServer implements Handler<ServerWebSocket> {
 	private MessageConsumer<JsonObject> registerEventBus(int room, ServerWebSocket event) {
 		try {
 			MessageConsumer<JsonObject> c = bus.<JsonObject>consumer("game.room." + room, msg -> {
-				log.debug("Consumer Publishing to " + msg.address());
+				// log.debug("Consumer Publishing to " + msg.address());
 				event.writeTextMessage(msg.body().encodePrettily());
 			});
 			c.exceptionHandler(ex -> {
@@ -112,13 +113,13 @@ public class SocketServer implements Handler<ServerWebSocket> {
 			return;
 		}
 
-		event.frameHandler(handleFrame(id, room, jwt));
+		//event.frameHandler(handleFrame(id, room, jwt));
 
 		event.closeHandler(handleClose(id, room, jwt, c));
 
 		event.endHandler(handleClose(id, room, jwt, c));
 
-		//event.handler(handleData(id, room, event));
+		event.handler(handleData(id, room, event));
 
 		event.exceptionHandler(handleException(id));
 
@@ -175,6 +176,7 @@ public class SocketServer implements Handler<ServerWebSocket> {
 				json.put("recieved", Instant.now());
 				String cU = this.<String, String>getMap("game.room." + room + ".current").values().iterator().next();
 				json.put("currentPlayer", cU);
+				json.put("append", json.getInteger("index") != 0);
 				DeliveryOptions opts = new DeliveryOptions();
 				bus.publish("game.room." + room, json, opts);
 			} catch (Exception e) {
@@ -185,9 +187,11 @@ public class SocketServer implements Handler<ServerWebSocket> {
 		};
 	}
 
+	//TODO actually validate the data
 	private boolean validateData(JsonObject json) {
 		if (json.containsKey("data")) {
-			return data.matcher(json.getJsonArray("data").encode()).matches();
+			//return data.matcher(json.getJsonArray("data").encode()).matches();
+			return true;
 		} else {
 			log.warn("NO DATA KEY");
 			return false;

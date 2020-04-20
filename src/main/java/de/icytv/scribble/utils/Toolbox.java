@@ -9,11 +9,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
 import java.security.KeyPair;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import org.apache.commons.validator.routines.InetAddressValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.icytv.scribble.sql.SQLQuery;
 import io.vertx.ext.web.RoutingContext;
 
 public abstract class Toolbox {
@@ -82,4 +85,14 @@ public abstract class Toolbox {
 		}
 	}
 
+	public static boolean isMissingParam(RoutingContext c, String param) {
+		return c.request().getParam(param) == null || "".equals(c.request().getParam(param));
+	}
+
+	public static int getUID(String name) throws SQLException {
+		ResultSet set = SQLQuery.queryWhere("users", "id", "name='" + name + "'");
+		log.info(set.next() ? "Getting uid": "Getting uid failed");
+		return set.getInt(1);
+
+	}
 }

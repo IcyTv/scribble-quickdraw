@@ -34,4 +34,16 @@ public abstract class SQLInsert {
 
 	}
 
+	public static void insertIfNotExists(String table, ValuePair... tvals) throws SQLException {
+		ArrayList<String> vals = new ArrayList<String>();
+		ArrayList<String> vals2 = new ArrayList<String>();
+
+		for (ValuePair s : tvals) {
+			vals.add(s.val1);
+			vals2.add(s.val2);
+		}
+		executeInsert(String.format("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING", table, String.join(",", vals),
+				String.join(",", vals2)));
+	}
+
 }

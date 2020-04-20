@@ -14,9 +14,10 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtParserBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.security.SignatureException;
 import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
 
 /**
  * JWT
@@ -61,6 +62,10 @@ public class JWT {
 
 	public static void main(String[] args) {
 		// JWT.verifyJWT();
+	}
+
+	public static JsonObject parseJwt(RoutingContext c) {
+		return parseJwt(c.request().getHeader("Authorization").replace("Bearer ", ""));
 	}
 
 }

@@ -5,7 +5,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,22 +33,13 @@ public class SQLConnection {
 			String user = (System.getenv("POSTGRES_USER") == null) ? "postgres" : System.getenv("POSTGRES_USER");
 			String pw = (System.getenv("POSTGRES_PW") == null) ? "postgres" : System.getenv("POSTGRES_PW");
 
-			Class.forName("com.qwazr.jdbc.cache.Driver");
 
-			Properties info = new Properties();
-			info.setProperty("cache.driver.url", url);
-			info.setProperty("cache.driver.class", "org.postgresql.Driver");
-			info.setProperty("user", user);
-			info.setProperty("password", pw);
-
-
-			//conn = DriverManager.getConnection(url, user, pw);
-			conn = DriverManager.getConnection("jdbc:cache:mem:postgres-cache", info);
+			conn = DriverManager.getConnection(url, user, pw);
 
 			conn.setAutoCommit(true);
 
 			setUpTables();
-		} catch (SQLException | ClassNotFoundException e) {
+		} catch (SQLException e) {
 			// Catch statement because of use in static final context
 			e.printStackTrace();
 			// throw new IllegalStateException(e.getMessage());

@@ -2,9 +2,6 @@ package de.icytv.scribble;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.sql.Driver;
-import java.sql.DriverManager;
-import java.sql.DriverPropertyInfo;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -40,24 +37,6 @@ public class SQLTest {
 	public void testQuery() throws SQLException {
 		ResultSet res = SQLQuery.query("users", "users");
 		assertThat(res.next()).isTrue();
-	}
-
-	@Test
-	@DisplayName("Test Driver")
-	public void testDriver() throws SQLException {
-		Driver driver = DriverManager.getDriver("jdbc:cache:mem:postgres-cache");
-		assertThat(driver).isNotNull();
-		assertThat(driver.getMajorVersion()).isEqualTo(1);
-		assertThat(driver.getMinorVersion()).isEqualTo(3);
-		assertThat(driver.getParentLogger()).isNotNull();
-		assertThat(driver.jdbcCompliant()).isFalse();
-		DriverPropertyInfo[] infos = driver.getPropertyInfo(null, null);
-		
-		assertThat(infos).isNotNull();
-		assertThat(infos.length).isEqualTo(3);
-		assertThat(infos[0].name).isEqualTo(com.qwazr.jdbc.cache.Driver.CACHE_DRIVER_URL);
-		assertThat(infos[1].name).isEqualTo(com.qwazr.jdbc.cache.Driver.CACHE_DRIVER_CLASS);
-		assertThat(infos[2].name).isEqualTo(com.qwazr.jdbc.cache.Driver.CACHE_DRIVER_ACTIVE);
 	}
 
 	@Test

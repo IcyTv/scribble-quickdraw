@@ -29,6 +29,10 @@ public class SQLUpdate {
 				table, column, column, adds, column, adds, wh));
 	}
 
+	public static void update(String table, String key, String newVal, String wh) throws SQLException {
+		executeUpdate(String.format("UPDATE %S SET %s='%s' WHERE %s", table, key, newVal, wh));
+	}
+
 	/**
 	 * @param sql
 	 * @throws SQLException

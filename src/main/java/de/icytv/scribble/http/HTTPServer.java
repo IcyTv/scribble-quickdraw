@@ -14,10 +14,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerResponse;
-import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 public class HTTPServer extends AbstractVerticle {
@@ -47,14 +44,12 @@ public class HTTPServer extends AbstractVerticle {
 		// log.info(PRIVATE_KEY.toString());
 	}
 
-	public HTTPServer(int port, boolean startSocket, boolean startApi,
-			boolean startStaticFiles) {
+	public HTTPServer(int port, boolean startSocket, boolean startApi, boolean startStaticFiles) {
 		this.port = port;
 		this.startSocket = startSocket;
 		this.startApi = startApi;
 		this.startStaticFiles = startStaticFiles;
 	}
-	
 
 	@Override
 	public void start(Promise<Void> prom) {
@@ -62,22 +57,22 @@ public class HTTPServer extends AbstractVerticle {
 		router = Router.router(vertx);
 
 		// API ROUTES
-		router.route().handler(BodyHandler.create());
-		router.post("/users/register").handler(UserHandler::handleUserRegister);
-		router.post("/users/login").handler(UserHandler::handleUserLogin);
-		router.get("/users/get-room/:username").handler(UserHandler::handleUserRoom);
-		router.get("/rooms/list-users/:username").handler(RoomHandler::handleListUsers);
-		router.get("/rooms/join").handler(RoomHandler::handleJoin);
-		router.post("/rooms/add/:user").handler(RoomHandler::handleAddUser);
+		// router.route().handler(BodyHandler.create());
+		// router.post("/users/register").handler(UserHandler::handleUserRegister);
+		// router.post("/users/login").handler(UserHandler::handleUserLogin);
+		// router.get("/users/get-room/:username").handler(UserHandler::handleUserRoom);
+		//router.get("/rooms/list-users/:username").handler(RoomHandler::handleListUsers);
+		//router.get("/rooms/join").handler(RoomHandler::handleJoin);
+		//router.post("/rooms/add/:user").handler(RoomHandler::handleAddUser);
 
 		router.get("/auth/socket").handler(SocketTicketHandler::getTicket);
 
-		Route auth = router.post("/auth/:scope").handler(UserHandler::handleUserAuth);
-		router.post("/api/refresh-jwt").handler(UserHandler::refreshJWT);
+		//Route auth = router.post("/auth/:scope").handler(UserHandler::handleUserAuth);
+		//router.post("/api/refresh-jwt").handler(UserHandler::refreshJWT);
 
 		router.get("/logout").handler(UserHandler::handleUserLogout);
 
-		router.route("/*").handler(StaticHandler.create("static"));
+		//router.route("/*").handler(StaticHandler.create("static"));
 
 		router.route().failureHandler(c -> {
 			Throwable err = c.failure();
@@ -85,18 +80,18 @@ public class HTTPServer extends AbstractVerticle {
 		});
 
 		// ERROR HANDLING
-		auth.failureHandler(c -> {
-			HttpServerResponse res = c.response();
-			int statusCode = c.statusCode();
-			if (statusCode == 401) {
-				log.warn("Invalid jwt");
-				res.setStatusCode(401).end("Your jwt token is invalid, please try logging in again");
-			} else if (statusCode == 403) {
-				res.setStatusCode(403).end("You do not have access to that scope");
-			} else {
-				log.fatal(c.normalisedPath(), c.failure());
-			}
-		});
+		// auth.failureHandler(c -> {
+		// 	HttpServerResponse res = c.response();
+		// 	int statusCode = c.statusCode();
+		// 	if (statusCode == 401) {
+		// 		log.warn("Invalid jwt");
+		// 		res.setStatusCode(401).end("Your jwt token is invalid, please try logging in again");
+		// 	} else if (statusCode == 403) {
+		// 		res.setStatusCode(403).end("You do not have access to that scope");
+		// 	} else {
+		// 		log.fatal(c.normalisedPath(), c.failure());
+		// 	}
+		// });
 
 		router.errorHandler(500, cont -> {
 			log.fatal("Error 500");
@@ -105,8 +100,7 @@ public class HTTPServer extends AbstractVerticle {
 
 		HttpServer s = vertx.createHttpServer();
 		s.websocketHandler(new SocketServer(vertx));
-		Handler<AsyncResult<HttpServer>> listenHandler = (testHandler != null) ? testHandler:
-		result -> {
+		Handler<AsyncResult<HttpServer>> listenHandler = (testHandler != null) ? testHandler : result -> {
 			log.info(result);
 			if (result.succeeded()) {
 				log.info("Started server on port " + port);
@@ -116,7 +110,12 @@ public class HTTPServer extends AbstractVerticle {
 				prom.fail(result.cause());
 			}
 		};
-		s.requestHandler(router).listen(port, listenHandler);
+		APIHandler handler = new APIHandler(router);
+		handler.initUserRoutes();
+		handler.initRoomRoutes();
+		handler.getRouter().route("/*").handler(StaticHandler.create("static"));
+
+		s.requestHandler(handler.getRouter()).listen(port, listenHandler);
 
 		vertx.exceptionHandler(ev -> {
 			log.fatal(ev.getLocalizedMessage(), ev);

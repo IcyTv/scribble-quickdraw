@@ -4,14 +4,18 @@ import p5 from "p5";
 import * as svg from "p5.js-svg";
 import parser from "query-string";
 import Url from "url-parse";
+import { checkAuth } from "./libs/auth";
 
 let socket: WebSocket;
 let player;
 
 window.onload = () => {
+	checkAuth();
 	let jwt: string = cookie
 		.parse(document.cookie)
 		.Authorization.replace("Bearer ", "");
+
+	console.log(jwt);
 
 	console.log(parser.parse(new Url(window.location.href)["query"]));
 	let room: number = +parser.parse(new Url(window.location.href)["query"])
@@ -40,6 +44,8 @@ interface sketch {
 	height: number;
 	pic: { x: number; y: number }[][];
 	sendInt: NodeJS.Timeout;
+	index: number;
+	buffer: { x: number; y: number }[];
 }
 
 const s = (p: p5) => {
@@ -48,15 +54,26 @@ const s = (p: p5) => {
 		height: innerHeight,
 		pic: [],
 		sendInt: null,
+		index: 0,
+		buffer: [],
 	};
 
 	p.setup = () => {
 		let canvas = p.createCanvas(d.width, d.height, svg.SVG);
 		canvas.parent("p5-sketch");
-		d.sendInt = setInterval(send, 100);
 	};
 
-	function send() {}
+	function send() {
+		console.log("sending");
+		socket.send(
+			JSON.stringify({
+				data: d.buffer,
+				index: d.index,
+			})
+		);
+		d.buffer = [];
+		d.index += 1;
+	}
 
 	p.draw = () => {
 		p.background(0);
@@ -75,6 +92,7 @@ const s = (p: p5) => {
 
 	p.touchStarted = () => {
 		d.pic.push([]);
+		d.sendInt = setInterval(send, 100);
 	};
 
 	p.touchMoved = (ev: MouseEvent) => {
@@ -83,10 +101,16 @@ const s = (p: p5) => {
 			x: p.constrain(ev.offsetX, 0, p.width),
 			y: p.constrain(ev.offsetY, 0, p.height),
 		});
+		d.buffer.push({
+			x: p.constrain(ev.offsetX, 0, p.width),
+			y: p.constrain(ev.offsetY, 0, p.height),
+		});
 	};
 
 	p.touchEnded = () => {
 		let last = d.pic.length - 1;
+		clearInterval(d.sendInt);
+		d.index = 0;
 		// socket.send(
 		// 	JSON.stringify({
 		// 		data: d.pic[last],
@@ -95,12 +119,15 @@ const s = (p: p5) => {
 	};
 
 	socket.onmessage = (ev) => {
-		//console.log(ev.data);
 		let json = JSON.parse(ev.data);
 		if (json.currentPlayer != player) {
-			console.log(json.currentPlayer);
-			//console.log(player);
-			d.pic.push(json.data);
+			if (json.append) {
+				d.pic[d.pic.length - 1] = d.pic[d.pic.length - 1].concat(
+					json.data
+				);
+			} else {
+				d.pic.push(json.data);
+			}
 		}
 	};
 };
