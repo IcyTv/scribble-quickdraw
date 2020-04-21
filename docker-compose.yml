@@ -1,0 +1,25 @@
+version: "3"
+services:
+  scribble:
+    build: .
+    container_name: scribble-quickdraw
+    ports:
+      - 8080:8080
+    networks:
+      - scribble
+    depends_on:
+      - scribble-db
+    environment:
+      - POSTGRES_URL: "scribble-db"
+    command: "initAll buildGulp run"
+
+  scribble-db:
+    image: postgres:latest
+    container_name: "scribble-db"
+    networks:
+      - scribble
+    environment:
+      - POSTGRES_PASSWORD: "postgres"
+
+networks:
+  scribble:

@@ -20,9 +20,7 @@ window.onload = () => {
 	console.log(parser.parse(new Url(window.location.href)["query"]));
 	let room: number = +parser.parse(new Url(window.location.href)["query"])
 		.room;
-	socket = new WebSocket(
-		"ws://localhost:8080/socket/" + room + "?jwt=" + jwt
-	);
+	socket = new WebSocket("/socket/" + room + "?jwt=" + jwt);
 	socket.onopen = (ev) => {
 		console.log("Connected");
 	};

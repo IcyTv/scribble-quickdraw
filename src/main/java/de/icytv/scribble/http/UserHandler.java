@@ -11,6 +11,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.regex.Pattern;
 
+//TODO Maybe replace with PreparedStatement
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +24,6 @@ import de.icytv.scribble.sql.SQLUpdate;
 import de.icytv.scribble.sql.ValuePair;
 import de.icytv.scribble.utils.JWT;
 import de.icytv.scribble.utils.Toolbox;
-//Maybe at some point change to io.vertx.jwt, but conflict with user etc...
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtBuilder;
@@ -51,9 +51,15 @@ public class UserHandler {
 			if (checkPassword(pw, u.pwHash)) {
 				res.setStatusCode(200);
 				res.putHeader("content-type", "application/json");
-				JsonObject json = new JsonObject();
-				json.put("jwt", getJWT(u));
-				res.end(json.encode());
+				// JsonObject json = new JsonObject();
+				// json.put("jwt", );
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(new Date());
+				cal.add(Calendar.HOUR, 24);
+				String jwt = getJWT(u);
+				//log.trace(jwt);
+				res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
+				res.end();// .end(json.encode());
 			} else {
 				res.setStatusCode(403).end("Wrong password");
 			}
@@ -61,18 +67,18 @@ public class UserHandler {
 			res.setStatusCode(403).end(e.getMessage());
 		} catch (Exception e) {
 			log.fatal("Error while logging in");
-			log.fatal(e.getMessage(), e);
+			log.fatal("severe exception", e);
 			res.setStatusCode(500).end("Internal Server Error on login");
 		}
 	}
 
 	static public void handleUserScope(RoutingContext c) {
 		HttpServerResponse res = c.response();
-		if(Toolbox.isMissingParam(c, "scope")) {
+		if (Toolbox.isMissingParam(c, "scope")) {
 			try {
 				JsonArray scopes = JWT.parseJwt(c).getJsonArray("perms");
 				res.setStatusCode(200).end(scopes.encode());
-			} catch(Exception e) {
+			} catch (Exception e) {
 				res.setStatusCode(500).end(e.getMessage());
 			}
 		} else {
@@ -139,7 +145,13 @@ public class UserHandler {
 				res.setStatusCode(403).end("User already exists");
 			} else {
 				log.info("registered user " + name);
-				newUser(name, pw, ip);
+				User u = newUser(name, pw, ip);
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(new Date());
+				cal.add(Calendar.HOUR, 24);
+				String jwt = getJWT(u);
+				// log.trace(jwt);
+				res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
 				res.setStatusCode(200).end("Registered user");
 			}
 		} catch (Exception e) {
@@ -164,7 +176,9 @@ public class UserHandler {
 			JwtBuilder builder = Jwts.builder();
 			builder.setClaims(claims);
 			builder.signWith(JWT_KEY_PAIR.getPrivate());
-			res.setStatusCode(200).end(builder.compact());
+			res.putHeader("Set-Cookie",
+					"Authorization=Bearer " + builder.compact() + ";Expires=" + cal.getTime() + ";Path=/");
+			res.setStatusCode(200).end();// .end(builder.compact());
 		} catch (Exception e) {
 			log.warn(e.getMessage());
 			res.setStatusCode(500).end("Internal Server error");
@@ -200,7 +214,7 @@ public class UserHandler {
 	public static void handlePwReset(RoutingContext c) {
 		HttpServerResponse res = c.response();
 		try {
-			if(!PermissionCheck.isSelf(c)) {
+			if (!PermissionCheck.isSelf(c)) {
 				PermissionCheck.hasPermissionHard(c, "user-edit");
 			}
 			String pw = c.getBodyAsJson().getString("password");
@@ -241,11 +255,13 @@ public class UserHandler {
 
 	}
 
-	public static void newUser(final String name, final String password, final String ip) throws Exception {
+	public static User newUser(final String name, final String password, final String ip) throws Exception {
 		String ename = StringEscapeUtils.escapeSql(name);
 		final PasswordEncoder pw = new BCryptPasswordEncoder();
 		final String encpw = pw.encode(password);
-
+		User u = new User();
+		u.name = ename;
+		u.pwHash = encpw;
 		// final Statement st = conn.createStatement();
 		// final String sql = String.format("INSERT INTO public.users(id, name,
 		// password, ips)"
@@ -253,6 +269,7 @@ public class UserHandler {
 		// st.executeUpdate(sql);
 		SQLInsert.insert("users", new ValuePair("name", str(ename)), new ValuePair("password", str(encpw)),
 				new ValuePair("ips", "ARRAY [" + str(ip) + "::INET]"));
+		return u;
 	}
 
 	private static boolean checkPassword(String pw, String hash) {
@@ -291,22 +308,6 @@ public class UserHandler {
 			u.perms = (String[]) res.getArray(3).getArray();
 		}
 		return u;
-	}
-
-	private static String getPwHash(String name) throws Exception {
-		log.info("Getting hash for " + name);
-		// Statement st = conn.createStatement();
-		// String sql = String.format("SELECT password FROM public.users WHERE
-		// name='%s'",
-		// StringEscapeUtils.escapeSql(name));
-		// ResultSet res = st.executeQuery(sql);
-		ResultSet res = SQLQuery.queryWhere("users", "password", "name=" + str(name));
-		if (res.next()) {
-			return res.getString(1);
-		} else {
-			log.warn("No user with the name " + name + " found");
-			throw new IllegalArgumentException("No user with the name " + name + " found");
-		}
 	}
 
 	private static void handleIp(String name, String ip) {
