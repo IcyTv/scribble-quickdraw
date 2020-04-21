@@ -1,8 +1,15 @@
 # scribble-quickdraw
 
+![Run JUnit5 tests](https://github.com/IcyTv/scribble-quickdraw/workflows/Run%20JUnit5%20tests/badge.svg?branch=master)
+
 A Scribble.io clone with [google quickdraw](https://github.com/googlecreativelab/quickdraw-dataset) trained AI integration
 
+## API
+
+For API docs click [here](https://stoplight.io/p/docs/gh/icytv/scribble-quickdraw-api)
+
 ## Building and developing
+
 To get started run `gradlew initAll`. This will install npm and gulp for you. To build the frontend files, run `gradlew gulp_default` and to build the Backend (Server) files, run `gradlew build`. In order to run the application, just execute `gradlew run`. To do both, just combine the commands: `gradlew gulp_default run`
 
 If you want to have continuous deployment you can use the following commands:
@@ -14,6 +21,7 @@ If you want to have continuous deployment you can use the following commands:
 You can also execute all valid gulp tasks by using `gradlew gulp_<taskname>`
 
 ### Sidenote
+
 You need a postgres instance to be running and setup with tables. In order to customize this, just add the postgres data in the [`SQLConnection.java` file](src/main/java/de/icytv/scribble/sql/SQLConnection.java) or in the [`Constants` file](src/main/java/de/icytv/scribble/utils/Constants.java, "WIP to refactor constants here")
 
 ## JWT Key generation

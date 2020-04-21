@@ -41,6 +41,7 @@ interface sketch {
 	width: number;
 	height: number;
 	pic: { x: number; y: number }[][];
+	buf: {coords: {x: number, y: number}[], index: number};
 	sendInt: NodeJS.Timeout;
 	index: number;
 	buffer: { x: number; y: number }[];
@@ -51,14 +52,29 @@ const s = (p: p5) => {
 		width: innerWidth - innerWidth / 5,
 		height: innerHeight,
 		pic: [],
+		buf: undefined,
 		sendInt: null,
 		index: 0,
 		buffer: [],
 	};
 
+	let send = () => {
+		let index = d.buf.index;
+		let coords = d.buf.coords;
+		let simple = simplify(coords);
+		console.log(coords);
+		d.buf.coords = [];
+		d.buf.index += 1;
+		socket.send(JSON.stringify({
+			coords: simple,
+			index: index
+		}))
+	}
+
 	p.setup = () => {
 		let canvas = p.createCanvas(d.width, d.height, svg.SVG);
 		canvas.parent("p5-sketch");
+<<<<<<< HEAD
 	};
 
 	function send() {
@@ -72,6 +88,11 @@ const s = (p: p5) => {
 		d.buffer = [];
 		d.index += 1;
 	}
+=======
+		//d.sendInt = setInterval(send, 100);
+	};
+
+>>>>>>> 5534fb1495df2b362a375daa1ecbf1e32b2f8bfc
 
 	p.draw = () => {
 		p.background(0);
@@ -108,21 +129,31 @@ const s = (p: p5) => {
 	p.touchEnded = () => {
 		let last = d.pic.length - 1;
 		clearInterval(d.sendInt);
+<<<<<<< HEAD
 		d.index = 0;
 		// socket.send(
 		// 	JSON.stringify({
 		// 		data: d.pic[last],
 		// 	})
 		// );
+=======
+		d.buf.index = 0;
+>>>>>>> 5534fb1495df2b362a375daa1ecbf1e32b2f8bfc
 	};
 
 	socket.onmessage = (ev) => {
 		let json = JSON.parse(ev.data);
 		if (json.currentPlayer != player) {
+<<<<<<< HEAD
 			if (json.append) {
 				d.pic[d.pic.length - 1] = d.pic[d.pic.length - 1].concat(
 					json.data
 				);
+=======
+			console.log(json.currentPlayer);
+			if(json.append) {
+				d.pic[d.pic.length - 1].concat(json.data);
+>>>>>>> 5534fb1495df2b362a375daa1ecbf1e32b2f8bfc
 			} else {
 				d.pic.push(json.data);
 			}

@@ -45,32 +45,13 @@ body {
     border-color: #2ecc71;
 }
 
-.box input[name="start-btn"]{
-    border: 0;
-    background: none;
-    display: block;
-    margin: 20px auto;
-    text-align: center;
-    border: 2px solid #2ecc71;
-    padding: 14px 40px;
-    outline: none;
-    color: white;
-    border-radius: 24px;
-    transition: 0.25s;
-    cursor: pointer;
-}
-
-.box input[name="start-btn"]:hover {
-    background: #2ecc71;
-}
-
 .box input[name="register-btn"]{
     border: 0;
     background: none;
     display: block;
     margin: 20px auto;
     text-align: center;
-    border: 2px solid #ffbb00;
+    border: 2px solid #e67e22;
     padding: 14px 40px;
     outline: none;
     color: white;
@@ -80,5 +61,5 @@ body {
 }
 
 .box input[name="register-btn"]:hover {
-    background: #ff9900;
+    background: #d35400;
 }
