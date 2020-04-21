@@ -25,3 +25,22 @@ body {
     text-align: center;
     color: #949494;
 }
+
+.box input[name="logout-btn"]{
+    border: 0;
+    background: none;
+    display: block;
+    margin: 20px auto;
+    text-align: center;
+    border: 2px solid #e74c3c;
+    padding: 14px 40px;
+    outline: none;
+    color: white;
+    border-radius: 24px;
+    transition: 0.25s;
+    cursor: pointer;
+}
+
+.box input[name="logout-btn"]:hover {
+    background: #c0392b;
+}
