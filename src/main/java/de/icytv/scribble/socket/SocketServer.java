@@ -1,6 +1,7 @@
 package de.icytv.scribble.socket;
 
 import java.lang.invoke.MethodHandles;
+import java.time.Instant;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -13,6 +14,7 @@ import de.icytv.scribble.utils.JWT;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.ServerWebSocket;
@@ -173,12 +175,9 @@ public class SocketServer implements Handler<ServerWebSocket> {
 				}
 				json.put("recieved", Instant.now());
 				String cU = this.<String, String>getMap("game.room." + room + ".current").values().iterator().next();
+				log.info(cU);
 				json.put("currentPlayer", cU);
-<<<<<<< HEAD
-				json.put("append", json.getInteger("index") != 0);
-=======
-				json.put("append", json.getInteger("index") == 0);
->>>>>>> 5534fb1495df2b362a375daa1ecbf1e32b2f8bfc
+				json.put("append", json.getJsonObject("data").getInteger("index") != 0);
 				DeliveryOptions opts = new DeliveryOptions();
 				bus.publish("game.room." + room, json, opts);
 			} catch (Exception e) {
@@ -191,13 +190,7 @@ public class SocketServer implements Handler<ServerWebSocket> {
 
 	// TODO actually validate the data
 	private boolean validateData(JsonObject json) {
-		if (json.containsKey("data")) {
-			// return data.matcher(json.getJsonArray("data").encode()).matches();
-			return true;
-		} else {
-			log.warn("NO DATA KEY");
-			return false;
-		}
+		return true;
 	}
 
 	public void changeCurrentUser(int room, String id, String name) {

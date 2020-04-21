@@ -1,10 +1,18 @@
 package de.icytv.scribble.http;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Base64;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 
 public class APIHandler {
+	
+	private static final Logger log = LogManager.getLogger(MethodHandles.lookup().lookupClass());
 
 	public final Router router;
 	private final BodyHandler bodyHandler;
@@ -18,17 +26,17 @@ public class APIHandler {
 		this.bodyHandler = BodyHandler.create();
 		this.router.route().handler(this.bodyHandler);
 
-		//This could be used, if static files handeled differently
-		// this.router.errorHandler(403, err -> {
-		// 	String errMsg = new String(Base64.getEncoder().encode("You are not authenticated, please try logging in again".getBytes()));
-		// 	err.response().setStatusCode(302).end("/index.html?error=" + errMsg);
-		// });
+		this.router.errorHandler(403, err -> {
+			String errMsg = new String(Base64.getEncoder().encode("You are not authenticated, please try logging in again".getBytes()));
+			err.response().setStatusCode(302).end("/index.html?error=" + errMsg);
+		});
 
 	}
 
 	public void initUserRoutes() {
 		router.post("/api/users/register").handler(UserHandler::handleUserRegister);
 		router.post("/api/users/login").handler(UserHandler::handleUserLogin);
+		router.get("/api/users/logout").handler(UserHandler::handleUserLogout);
 		router.get("/api/users/rooms/:username").handler(UserHandler::handleUserRoom);
 		router.get("/api/users/refresh").handler(UserHandler::refreshJWT);
 		router.get("/api/users/list").handler(UserHandler::handleListUsers);

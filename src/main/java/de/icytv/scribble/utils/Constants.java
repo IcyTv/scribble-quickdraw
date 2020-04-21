@@ -11,7 +11,7 @@ public final class Constants {
 
 	public static final KeyPair JWT_KEY_PAIR = Toolbox.keyPairNoEx();
 
-	public static final String ISSUER = "scibble-server";
+	public static final String ISSUER = "scribble-server";
 
 	private Constants() {
 		log.error("Called the Constants constructor!!");

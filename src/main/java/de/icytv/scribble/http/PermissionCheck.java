@@ -29,7 +29,7 @@ public class PermissionCheck {
 
 	public static void hasPermissionHard(RoutingContext c, String perm) throws AccessViolationException {
 		try {
-			String jwts = c.request().getHeader("Authorization").replace("Bearer ", "");
+			String jwts = c.getCookie("Authorization").getValue();
 			JsonObject jwt = JWT.parseJwt(jwts);
 			JsonArray perms = jwt.getJsonArray("perms");
 			if (!perms.contains(perm)) {
@@ -52,6 +52,10 @@ public class PermissionCheck {
 		if (!isSelf(c)) {
 			throw new AccessViolationException("User is not self!");
 		}
+	}
+
+	public static boolean hasPermission(RoutingContext c, String perm) {
+		return hasPermission(c.getCookie("Authorization").getValue(), perm);
 	}
 
 }

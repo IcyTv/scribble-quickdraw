@@ -42,7 +42,7 @@ window.onload = () => {
 					console.log(errorP);
 					setTimeout(() => {
 						window.location.href = "waiting.html";
-						//console.log("redirect");
+						console.log("redirect");
 					}, 3000);
 				} else if (data.status == 403) {
 					throw Error("Username or password wrong");
@@ -60,7 +60,8 @@ window.onload = () => {
 	});
 
 	register.addEventListener("click", (e) => {
-		console.log("redirecting to register-window")
-		window.location.href = "https://www.IcyTv.de/prijects/scribble-quickdraw/register.html";	//redirect to next page?
+		console.log("redirecting to register-window");
+		window.location.href = "register.html"; //redirect to next page?
+		e.preventDefault();
 	});
 };

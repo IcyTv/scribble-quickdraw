@@ -28,6 +28,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
+import io.vertx.core.http.Cookie;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -58,7 +59,11 @@ public class UserHandler {
 				cal.add(Calendar.HOUR, 24);
 				String jwt = getJWT(u);
 				//log.trace(jwt);
-				res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
+				// res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
+				Cookie cookie = Cookie.cookie("Authorization", jwt);
+				cookie.setPath("/");
+				cookie.setMaxAge(24L * 3600); //24 Hours
+				res.addCookie(cookie);
 				res.end();// .end(json.encode());
 			} else {
 				res.setStatusCode(403).end("Wrong password");
@@ -76,9 +81,11 @@ public class UserHandler {
 		HttpServerResponse res = c.response();
 		if (Toolbox.isMissingParam(c, "scope")) {
 			try {
+				log.info(JWT.parseJwt(c));
 				JsonArray scopes = JWT.parseJwt(c).getJsonArray("perms");
 				res.setStatusCode(200).end(scopes.encode());
 			} catch (Exception e) {
+				log.error(e);
 				res.setStatusCode(500).end(e.getMessage());
 			}
 		} else {
@@ -98,7 +105,10 @@ public class UserHandler {
 	}
 
 	public static void handleUserLogout(RoutingContext c) {
-		c.response().setStatusCode(307).end("/logout.html");
+		Cookie cookie = Cookie.cookie("Authorization", "");
+		cookie.setMaxAge(0);
+		c.response().addCookie(cookie);
+		c.response().setStatusCode(200).end();
 	}
 
 	public static void handleUserRoom(RoutingContext c) {
@@ -151,7 +161,11 @@ public class UserHandler {
 				cal.add(Calendar.HOUR, 24);
 				String jwt = getJWT(u);
 				// log.trace(jwt);
-				res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
+				//res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
+				Cookie cookie = Cookie.cookie("Authorization", jwt);
+				cookie.setMaxAge(24L * 3600);
+				cookie.setPath("/");
+				res.addCookie(cookie);
 				res.setStatusCode(200).end("Registered user");
 			}
 		} catch (Exception e) {
@@ -205,6 +219,7 @@ public class UserHandler {
 			res.setStatusCode(200).end(resp.encode());
 		} catch (AccessViolationException e) {
 			res.setStatusCode(401).end(e.getMessage());
+			//c.fail(403);
 		} catch (Exception e) {
 			log.error(e.getMessage(), e);
 			res.setStatusCode(500).end(e.getMessage());
@@ -231,6 +246,8 @@ public class UserHandler {
 
 	public static void handleGetUserInfo(RoutingContext c) {
 		HttpServerResponse res = c.response();
+		log.info(c.request().cookieCount());
+		log.trace(c.getCookie("Authorization"));
 		try {
 
 			if (!PermissionCheck.isSelf(c)) {
@@ -241,12 +258,16 @@ public class UserHandler {
 			while (u.next()) {
 				user.put("id", u.getInt("id"));
 				user.put("name", u.getString("name"));
-				user.put("hash", u.getString("password"));
+				if(PermissionCheck.hasPermission(c, "admin")) {
+					user.put("hash", u.getString("password"));
+				}
 				user.put("ips", u.getArray("ips").getArray());
 				user.put("permissions", u.getInt("permissions"));
 			}
+			res.putHeader("Content-Type", "application/json");
 			res.setStatusCode(200).end(user.encode());
 		} catch (AccessViolationException e) {
+			//c.fail(403);
 			res.setStatusCode(401).end(e.getMessage());
 		} catch (Exception e) {
 			log.warn(e.getMessage(), e);

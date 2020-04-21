@@ -44,7 +44,7 @@ public class JWT {
 	public static JsonObject parseJwt(String s) throws UnsupportedJwtException, ExpiredJwtException,
 			MalformedJwtException, SignatureException, IllegalArgumentException {
 		JwtParserBuilder builder = Jwts.parserBuilder();
-		builder.requireIssuer(UserHandler.ISSUER);
+		builder.requireIssuer(Constants.ISSUER);
 		builder.setSigningKey(JWT_KEY_PAIR.getPublic());
 		Claims c = builder.build().parseClaimsJws(s).getBody();
 		log.trace(c);
@@ -65,7 +65,11 @@ public class JWT {
 	}
 
 	public static JsonObject parseJwt(RoutingContext c) {
-		return parseJwt(c.request().getHeader("Authorization").replace("Bearer ", ""));
+		try {
+			return parseJwt(c.request().getHeader("Authorization").replace("Bearer ", ""));
+		}catch(NullPointerException e) {
+			return parseJwt(c.getCookie("Authorization").getValue());
+		}
 	}
 
 }
