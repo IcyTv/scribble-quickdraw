@@ -14,9 +14,10 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtParserBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.security.SignatureException;
 import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
 
 /**
  * JWT
@@ -43,7 +44,7 @@ public class JWT {
 	public static JsonObject parseJwt(String s) throws UnsupportedJwtException, ExpiredJwtException,
 			MalformedJwtException, SignatureException, IllegalArgumentException {
 		JwtParserBuilder builder = Jwts.parserBuilder();
-		builder.requireIssuer(UserHandler.ISSUER);
+		builder.requireIssuer(Constants.ISSUER);
 		builder.setSigningKey(JWT_KEY_PAIR.getPublic());
 		Claims c = builder.build().parseClaimsJws(s).getBody();
 		log.trace(c);
@@ -61,6 +62,14 @@ public class JWT {
 
 	public static void main(String[] args) {
 		// JWT.verifyJWT();
+	}
+
+	public static JsonObject parseJwt(RoutingContext c) {
+		try {
+			return parseJwt(c.request().getHeader("Authorization").replace("Bearer ", ""));
+		}catch(NullPointerException e) {
+			return parseJwt(c.getCookie("Authorization").getValue());
+		}
 	}
 
 }

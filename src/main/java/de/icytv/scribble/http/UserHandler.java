@@ -6,12 +6,12 @@ import static de.icytv.scribble.utils.Constants.JWT_KEY_PAIR;
 import java.lang.invoke.MethodHandles;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.regex.Pattern;
 
+//TODO Maybe replace with PreparedStatement
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,14 +22,15 @@ import de.icytv.scribble.sql.SQLInsert;
 import de.icytv.scribble.sql.SQLQuery;
 import de.icytv.scribble.sql.SQLUpdate;
 import de.icytv.scribble.sql.ValuePair;
+import de.icytv.scribble.utils.JWT;
 import de.icytv.scribble.utils.Toolbox;
-//Maybe at some point change to io.vertx.jwt, but conflict with user etc...
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.SignatureException;
+import io.vertx.core.http.Cookie;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
@@ -50,8 +51,20 @@ public class UserHandler {
 			User u = getUserInfo(name);
 			if (checkPassword(pw, u.pwHash)) {
 				res.setStatusCode(200);
-				res.putHeader("content-type", "text/plain");
-				res.end(getJWT(u));
+				res.putHeader("content-type", "application/json");
+				// JsonObject json = new JsonObject();
+				// json.put("jwt", );
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(new Date());
+				cal.add(Calendar.HOUR, 24);
+				String jwt = getJWT(u);
+				//log.trace(jwt);
+				// res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
+				Cookie cookie = Cookie.cookie("Authorization", jwt);
+				cookie.setPath("/");
+				cookie.setMaxAge(24L * 3600); //24 Hours
+				res.addCookie(cookie);
+				res.end();// .end(json.encode());
 			} else {
 				res.setStatusCode(403).end("Wrong password");
 			}
@@ -59,52 +72,43 @@ public class UserHandler {
 			res.setStatusCode(403).end(e.getMessage());
 		} catch (Exception e) {
 			log.fatal("Error while logging in");
-			log.fatal(e.getMessage());
+			log.fatal("severe exception", e);
 			res.setStatusCode(500).end("Internal Server Error on login");
 		}
 	}
 
-	static public void handleUserAuth(RoutingContext c) {
-		JsonObject body = c.getBodyAsJson();
+	static public void handleUserScope(RoutingContext c) {
 		HttpServerResponse res = c.response();
-		String scope = StringEscapeUtils.escapeSql(c.request().getParam("scope"));
-		try {
-			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(JWT_KEY_PAIR.getPublic()).build()
-					.parseClaimsJws(body.getString("jwt"));
-			Claims claims = jwt.getBody();
-			if (claims.getExpiration().compareTo(new Date()) < 0) {
-				SimpleDateFormat form = new SimpleDateFormat();
-				log.info("Current time: " + form.format(new Date()));
-				log.warn("Expired jwt on " + form.format(claims.getExpiration()));
-				c.fail(401);
-				return;
+		if (Toolbox.isMissingParam(c, "scope")) {
+			try {
+				log.info(JWT.parseJwt(c));
+				JsonArray scopes = JWT.parseJwt(c).getJsonArray("perms");
+				res.setStatusCode(200).end(scopes.encode());
+			} catch (Exception e) {
+				log.error(e);
+				res.setStatusCode(500).end(e.getMessage());
 			}
-			if (!claims.getIssuer().equals(ISSUER)) {
-				log.warn("Wrong issuer!");
-				c.fail(401);
-				return;
-			}
-			boolean found = false;
-			for (Object perm : claims.get("perms", ArrayList.class)) {
-				if (perm.equals(scope)) {
-					found = true;
-					break;
-				}
-			}
-			if (!found) {
-				log.warn("Wrong scope");
-				c.fail(403);
-				return;
-			}
-			res.setStatusCode(200).end("authenticated");
+		} else {
+			String scope = StringEscapeUtils.escapeSql(c.request().getParam("scope"));
+			try {
+				JsonObject jwt = JWT.parseJwt(c);
+				JsonArray scopes = jwt.getJsonArray("perms");
+				JsonObject resp = new JsonObject();
+				resp.put("scope", scope);
+				resp.put("has", scopes.contains(scope));
+				res.setStatusCode(200).end(resp.encode());
 
-		} catch (SignatureException e) {
-			c.fail(401);
+			} catch (Exception e) {
+				res.setStatusCode(500).end(e.getMessage());
+			}
 		}
 	}
 
 	public static void handleUserLogout(RoutingContext c) {
-		c.response().setStatusCode(307).end("/logout.html");
+		Cookie cookie = Cookie.cookie("Authorization", "");
+		cookie.setMaxAge(0);
+		c.response().addCookie(cookie);
+		c.response().setStatusCode(200).end();
 	}
 
 	public static void handleUserRoom(RoutingContext c) {
@@ -151,7 +155,17 @@ public class UserHandler {
 				res.setStatusCode(403).end("User already exists");
 			} else {
 				log.info("registered user " + name);
-				newUser(name, pw, ip);
+				User u = newUser(name, pw, ip);
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(new Date());
+				cal.add(Calendar.HOUR, 24);
+				String jwt = getJWT(u);
+				// log.trace(jwt);
+				//res.putHeader("Set-Cookie", "Authorization=Bearer " + jwt + ";Expires=" + cal.getTime() + ";Path=/");
+				Cookie cookie = Cookie.cookie("Authorization", jwt);
+				cookie.setMaxAge(24L * 3600);
+				cookie.setPath("/");
+				res.addCookie(cookie);
 				res.setStatusCode(200).end("Registered user");
 			}
 		} catch (Exception e) {
@@ -164,9 +178,10 @@ public class UserHandler {
 	public static void refreshJWT(RoutingContext c) {
 		HttpServerResponse res = c.response();
 		try {
-			JsonObject body = c.getBodyAsJson();
-			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(JWT_KEY_PAIR.getPublic()).build()
-					.parseClaimsJws(body.getString("jwt"));
+			// JsonObject body = c.getBodyAsJson();
+			String jwts = c.request().getHeader("Authorization").replace("Bearer ", "");
+
+			Jws<Claims> jwt = Jwts.parserBuilder().setSigningKey(JWT_KEY_PAIR.getPublic()).build().parseClaimsJws(jwts);
 			Claims claims = jwt.getBody();
 			Calendar cal = Calendar.getInstance();
 			cal.setTime(new Date());
@@ -175,18 +190,99 @@ public class UserHandler {
 			JwtBuilder builder = Jwts.builder();
 			builder.setClaims(claims);
 			builder.signWith(JWT_KEY_PAIR.getPrivate());
-			res.setStatusCode(200).end(builder.compact());
+			res.putHeader("Set-Cookie",
+					"Authorization=Bearer " + builder.compact() + ";Expires=" + cal.getTime() + ";Path=/");
+			res.setStatusCode(200).end();// .end(builder.compact());
 		} catch (Exception e) {
 			log.warn(e.getMessage());
 			res.setStatusCode(500).end("Internal Server error");
 		}
 	}
 
-	public static void newUser(final String name, final String password, final String ip) throws Exception {
+	public static void handleListUsers(RoutingContext c) {
+		HttpServerResponse res = c.response();
+		try {
+			PermissionCheck.hasPermissionHard(c, "user-info");
+			ResultSet users = SQLQuery.queryAll("users");
+			JsonObject resp = new JsonObject();
+			JsonArray uarr = new JsonArray();
+			while (users.next()) {
+				JsonObject user = new JsonObject();
+				user.put("id", users.getInt("id"));
+				user.put("name", users.getString("name"));
+				user.put("hash", users.getString("password"));
+				user.put("ips", users.getArray("ips").getArray());
+				user.put("permissions", users.getInt("permissions"));
+				uarr.add(user);
+			}
+			resp.put("users", uarr);
+			res.setStatusCode(200).end(resp.encode());
+		} catch (AccessViolationException e) {
+			res.setStatusCode(401).end(e.getMessage());
+			//c.fail(403);
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+			res.setStatusCode(500).end(e.getMessage());
+		}
+	}
+
+	public static void handlePwReset(RoutingContext c) {
+		HttpServerResponse res = c.response();
+		try {
+			if (!PermissionCheck.isSelf(c)) {
+				PermissionCheck.hasPermissionHard(c, "user-edit");
+			}
+			String pw = c.getBodyAsJson().getString("password");
+			SQLUpdate.update("users", "password", User.encPw(pw), "name=" + str(c.request().getParam("username")));
+			res.setStatusCode(200).end("Success");
+		} catch (AccessViolationException e) {
+			res.setStatusCode(403).end(e.getMessage());
+		} catch (Exception e) {
+			log.warn(e.getMessage(), e);
+			res.setStatusCode(500).end(e.getMessage());
+		}
+
+	}
+
+	public static void handleGetUserInfo(RoutingContext c) {
+		HttpServerResponse res = c.response();
+		log.info(c.request().cookieCount());
+		log.trace(c.getCookie("Authorization"));
+		try {
+
+			if (!PermissionCheck.isSelf(c)) {
+				PermissionCheck.hasPermissionHard(c, "user-info");
+			}
+			ResultSet u = SQLQuery.queryAllWhere("users", "name=" + str(c.request().getParam("username")));
+			JsonObject user = new JsonObject();
+			while (u.next()) {
+				user.put("id", u.getInt("id"));
+				user.put("name", u.getString("name"));
+				if(PermissionCheck.hasPermission(c, "admin")) {
+					user.put("hash", u.getString("password"));
+				}
+				user.put("ips", u.getArray("ips").getArray());
+				user.put("permissions", u.getInt("permissions"));
+			}
+			res.putHeader("Content-Type", "application/json");
+			res.setStatusCode(200).end(user.encode());
+		} catch (AccessViolationException e) {
+			//c.fail(403);
+			res.setStatusCode(401).end(e.getMessage());
+		} catch (Exception e) {
+			log.warn(e.getMessage(), e);
+			res.setStatusCode(500).end();
+		}
+
+	}
+
+	public static User newUser(final String name, final String password, final String ip) throws Exception {
 		String ename = StringEscapeUtils.escapeSql(name);
 		final PasswordEncoder pw = new BCryptPasswordEncoder();
 		final String encpw = pw.encode(password);
-
+		User u = new User();
+		u.name = ename;
+		u.pwHash = encpw;
 		// final Statement st = conn.createStatement();
 		// final String sql = String.format("INSERT INTO public.users(id, name,
 		// password, ips)"
@@ -194,6 +290,7 @@ public class UserHandler {
 		// st.executeUpdate(sql);
 		SQLInsert.insert("users", new ValuePair("name", str(ename)), new ValuePair("password", str(encpw)),
 				new ValuePair("ips", "ARRAY [" + str(ip) + "::INET]"));
+		return u;
 	}
 
 	private static boolean checkPassword(String pw, String hash) {
@@ -228,25 +325,10 @@ public class UserHandler {
 		if (res.next()) {
 			u.name = res.getString("name");
 			u.pwHash = res.getString("password");
+			log.info(res.getArray(3));
 			u.perms = (String[]) res.getArray(3).getArray();
 		}
 		return u;
-	}
-
-	private static String getPwHash(String name) throws Exception {
-		log.info("Getting hash for " + name);
-		// Statement st = conn.createStatement();
-		// String sql = String.format("SELECT password FROM public.users WHERE
-		// name='%s'",
-		// StringEscapeUtils.escapeSql(name));
-		// ResultSet res = st.executeQuery(sql);
-		ResultSet res = SQLQuery.queryWhere("users", "password", "name=" + str(name));
-		if (res.next()) {
-			return res.getString(1);
-		} else {
-			log.warn("No user with the name " + name + " found");
-			throw new IllegalArgumentException("No user with the name " + name + " found");
-		}
 	}
 
 	private static void handleIp(String name, String ip) {

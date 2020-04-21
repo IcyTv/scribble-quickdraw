@@ -71,5 +71,4 @@ public class APITest {
 	public void tearDown() throws SQLException {
 		SQLDelete.delete("users", "name='test'");
 	}
-
 }

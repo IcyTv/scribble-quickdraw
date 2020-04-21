@@ -19,12 +19,25 @@ plugins {
 
     id "ru.akman.vscode-tasks" version "0.4.0"
     id "com.dorongold.task-tree" version "1.5"
+
 }
 
 repositories {
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
+}
+
+node {
+    // Version of node to use.
+    version = '13.13.0'
+
+    // Version of npm to use.
+    npmVersion = '6.14.4'
+    // Base URL for fetching node distributions (change if you have a mirror).
+    distBaseUrl = 'https://nodejs.org/dist'
+
+    download=true
 }
 
 dependencies {
@@ -47,6 +60,10 @@ dependencies {
 	implementation 'org.fusesource.jansi:jansi:1.18';
 	implementation 'org.bouncycastle:bcprov-jdk15on:1.60';
 
+    //implementation 'com.github.ben-manes.caffeine:caffeine:2.8.1';
+    implementation 'com.qwazr:jdbc-cache-driver:1.3.1';
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:2.3.3';
+
     testImplementation 'io.vertx:vertx-junit5:4.0.0-milestone4'
     testImplementation 'org.assertj:assertj-core:3.15.0'
     testImplementation 'io.vertx:vertx-junit5-web-client:4.0.0-milestone4'
@@ -66,6 +83,8 @@ test {
 }
 
 task initAll {
+    enabled = true
+    dependsOn 'nodeSetup'
     dependsOn 'npmInstall'
     dependsOn 'installGulp'
 }
@@ -78,17 +97,14 @@ task buildGulp(type: GulpTask) {
     args = ["default", "--out", "static"]
 }
 
-
-// TODO Implement properly...........
-// task watchAll(type: JavaExec) {
-//     main = "de.icytv.scribble.App";
-//     classpath = sourceSets.main.runtimeClasspath
-//     def proc = (System.getProperty("user.dir") + "/node_modules/.bin/gulp.cmd watch").execute();
-//     if(project.hasProperty("showGulp")) {
-//         proc.consumeProcessOutput(System.out, System.err);
-//     }
-//     //proc.waitFor()
+// nodeSetup.onlyIf {
+//     !nodeSetup.nodeDir.exists()
 // }
+
+// npmSetup.onlyIf {
+//     !nodeSetup.npmDir.exists()
+// }
+
 
 task devFront(type: GulpTask) {
     args = ["watch", "--browser"]

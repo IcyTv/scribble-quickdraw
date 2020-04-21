@@ -18,6 +18,7 @@
 		"@babel/preset-env": "^7.9.0",
 		"@babel/register": "^7.9.0",
 		"@types/cookie": "^0.3.3",
+		"@types/js-base64": "^2.3.1",
 		"@types/jwt-decode": "^2.2.1",
 		"@types/node": "^13.9.8",
 		"@types/yargs": "^15.0.4",
@@ -37,7 +38,7 @@
 		"gulp-sourcemaps": "^2.6.5",
 		"gulp-w3c-html-validator": "^2.0.0",
 		"gulp-watchify-factor-bundle": "^2.0.0",
-		"lodash.template": "^4.5.0",
+		"js-base64": "^2.5.2",
 		"tsify": "^4.0.1",
 		"typescript": "^3.8.3",
 		"yargs": "^15.3.1"

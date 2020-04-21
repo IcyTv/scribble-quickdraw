@@ -23,14 +23,19 @@ public class SQLConnection {
 			// conn = DriverManager.getConnection(HTTPServer.POSTGRES_URL,
 			// HTTPServer.POSTGRES_USER,
 			// HTTPServer.POSTGRES_PW);
+
+			
+
 			String port = (System.getenv("POSTGRES_PORT") == null) ? "5432" : System.getenv("POSTGRES_PORT");
 			String db = (System.getenv("POSTGRES_DB") == null) ? "scribble" : System.getenv("POSTGRES_DB");
 			String url = (System.getenv("POSTGRES_URL") == null) ? "jdbc:postgresql://localhost:" + port + "/" + db
 					: "jdbc:postgresql://" + System.getenv("POSTGRES_URL") + ":" + port + "/" + db;
 			String user = (System.getenv("POSTGRES_USER") == null) ? "postgres" : System.getenv("POSTGRES_USER");
 			String pw = (System.getenv("POSTGRES_PW") == null) ? "postgres" : System.getenv("POSTGRES_PW");
-			System.out.println(url + "   " + user + " " + pw);
+
+
 			conn = DriverManager.getConnection(url, user, pw);
+
 			conn.setAutoCommit(true);
 
 			setUpTables();

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import de.icytv.scribble.http.UserHandler;
+import de.icytv.scribble.sql.SQLConnection;
 import de.icytv.scribble.sql.SQLDelete;
 import de.icytv.scribble.sql.SQLQuery;
 
@@ -22,6 +23,13 @@ public class SQLTest {
 	@BeforeAll
 	public void setUp() throws Exception {
 		UserHandler.newUser("test", "password", "127.0.0.1");
+		Class.forName("com.qwazr.jdbc.cache.Driver");
+	}
+
+	@Test
+	@DisplayName("Connection test")
+	public void testConnection() {
+		assertThat(SQLConnection.init().getConnection()).isNotNull();
 	}
 
 	@Test
