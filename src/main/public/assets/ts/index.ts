@@ -4,7 +4,8 @@ import jwt_decode from "jwt-decode";
 window.onload = () => {
 	console.log("tester-moin");
 	let login = document.getElementById("lg-form");
-	let submit = login.querySelector("input[type=submit]");
+	let submit = login.querySelector("input[name=start-btn]");
+	let register = login.querySelector("input[name=register-btn]");
 	let errorP = document.getElementById("err-box");
 
 	submit.addEventListener("click", (e) => {
@@ -46,5 +47,10 @@ window.onload = () => {
 				errorP.style.color = "red";
 			});
 		e.preventDefault();
+	});
+
+	register.addEventListener("click", (e) => {
+		console.log("redirecting to register-window")
+		window.location.href = "https://www.IcyTv.de/prijects/scribble-quickdraw/register.html";	//redirect to next page?
 	});
 };
